@@ -1,0 +1,15 @@
+
+flask
+flask-cors
+flask-sqlalchemy
+pymysql
+python-dotenv
+pandas
+prophet
+numpy
+matplotlib
+celery
+redis
+flask-migrate
+marshmallow
+plotly

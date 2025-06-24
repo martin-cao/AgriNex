@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/mcp-server" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/sensor-client" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="agrinex" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

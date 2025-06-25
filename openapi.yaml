@@ -1,0 +1,1107 @@
+openapi: 3.0.3
+info:
+  title: AgriNex - Agricultural IoT Data Management Platform
+  description: |
+    AgriNex是一个农业物联网数据管理平台，采用三层架构：设备(Device) → 传感器(Sensor) → 读数(Reading)。
+    
+    主要功能：
+    - 设备管理：管理农业物联网设备
+    - 传感器管理：管理设备下的各种传感器
+    - 数据采集：收集传感器读数数据
+    - 数据分析：提供统计分析和预测功能
+    - 告警管理：异常数据自动告警
+    - 用户认证：JWT基础的用户认证系统
+  version: 1.0.0
+  contact:
+    name: AgriNex Development Team
+    email: dev@agrinex.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+  - url: https://api.agrinex.com/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: 用户认证相关接口
+  - name: Users
+    description: 用户管理
+  - name: Devices
+    description: 设备管理
+  - name: Sensors
+    description: 传感器管理
+  - name: Readings
+    description: 传感器读数
+  - name: Predictions
+    description: 数据预测
+  - name: Alarms
+    description: 告警管理
+  - name: Analytics
+    description: 数据分析
+  - name: MCP
+    description: Model Context Protocol 相关接口
+
+security:
+  - bearerAuth: []
+
+paths:
+  # Authentication endpoints
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: 用户登录
+      description: 使用用户名和密码登录，返回JWT令牌
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: 用户登出
+      description: 撤销JWT令牌
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: 用户注册
+      description: 注册新用户账户
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: newuser
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered successfully
+                  username:
+                    type: string
+                    example: newuser
+        '409':
+          description: 用户名已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: 刷新访问令牌
+      description: 使用refresh token获取新的access token
+      security:
+        - refreshAuth: []
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+
+  /auth/profile:
+    get:
+      tags: [Authentication]
+      summary: 获取用户信息
+      description: 获取当前登录用户的个人信息
+      responses:
+        '200':
+          description: 用户信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  role:
+                    type: string
+                  claims:
+                    type: object
+
+  # Device endpoints
+  /devices:
+    get:
+      tags: [Devices]
+      summary: 获取设备列表
+      description: 获取所有设备的列表
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, maintenance, offline]
+      responses:
+        '200':
+          description: 设备列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      tags: [Devices]
+      summary: 创建新设备
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreate'
+      responses:
+        '201':
+          description: 设备创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /devices/{deviceId}:
+    get:
+      tags: [Devices]
+      summary: 获取设备详情
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 设备详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Devices]
+      summary: 更新设备信息
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdate'
+      responses:
+        '200':
+          description: 设备更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+    delete:
+      tags: [Devices]
+      summary: 删除设备
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 设备删除成功
+
+  # Sensor endpoints
+  /devices/{deviceId}/sensors:
+    get:
+      tags: [Sensors]
+      summary: 获取设备下的传感器列表
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 传感器列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sensor'
+
+    post:
+      tags: [Sensors]
+      summary: 为设备添加传感器
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensorCreate'
+      responses:
+        '201':
+          description: 传感器创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+  /sensors/{sensorId}:
+    get:
+      tags: [Sensors]
+      summary: 获取传感器详情
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 传感器详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+    put:
+      tags: [Sensors]
+      summary: 更新传感器信息
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensorUpdate'
+      responses:
+        '200':
+          description: 传感器更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+  # Reading endpoints
+  /sensors/{sensorId}/readings:
+    get:
+      tags: [Readings]
+      summary: 获取传感器读数
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 传感器读数列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reading'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      tags: [Readings]
+      summary: 添加传感器读数
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadingCreate'
+      responses:
+        '201':
+          description: 读数添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reading'
+
+  /sensors/{sensorId}/readings/latest:
+    get:
+      tags: [Readings]
+      summary: 获取传感器最新读数
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 最新读数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reading'
+
+  /sensors/{sensorId}/stats:
+    get:
+      tags: [Analytics]
+      summary: 获取传感器统计信息
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+      responses:
+        '200':
+          description: 传感器统计信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorStats'
+
+  # Prediction endpoints
+  /sensors/{sensorId}/predictions:
+    get:
+      tags: [Predictions]
+      summary: 获取传感器预测数据
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+      responses:
+        '200':
+          description: 预测数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sensor_id:
+                    type: integer
+                  predictions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prediction'
+
+  # Alarm endpoints
+  /alarms:
+    get:
+      tags: [Alarms]
+      summary: 获取告警列表
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, resolved, ignored]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: 告警列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alarm'
+
+  /alarms/{alarmId}/resolve:
+    post:
+      tags: [Alarms]
+      summary: 解决告警
+      parameters:
+        - name: alarmId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution_note:
+                  type: string
+      responses:
+        '200':
+          description: 告警已解决
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alarm'
+
+  # MCP endpoints
+  /mcp/add:
+    post:
+      tags: [MCP]
+      summary: 添加设备 (MCP)
+      description: 通过MCP接口添加新设备
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, location]
+              properties:
+                name:
+                  type: string
+                  example: "温室3控制器"
+                location:
+                  type: string
+                  example: "温室3"
+                type:
+                  type: string
+                  example: "controller"
+      responses:
+        '201':
+          description: 设备添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device added successfully
+
+  /mcp/devices:
+    get:
+      tags: [MCP]
+      summary: 获取设备列表 (MCP)
+      description: 通过MCP接口获取所有设备
+      responses:
+        '200':
+          description: 设备列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+
+  /mcp/devices/{deviceId}/sensors:
+    get:
+      tags: [MCP]
+      summary: 获取设备传感器 (MCP)
+      description: 通过MCP接口获取设备下的传感器
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 传感器列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sensor'
+
+    post:
+      tags: [MCP]
+      summary: 添加传感器 (MCP)
+      description: 通过MCP接口为设备添加传感器
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  example: "temperature"
+                name:
+                  type: string
+                  example: "温度传感器"
+                unit:
+                  type: string
+                  example: "°C"
+                status:
+                  type: string
+                  default: "active"
+      responses:
+        '201':
+          description: 传感器添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Sensor added successfully
+
+  /mcp/sensors/{sensorId}/readings:
+    get:
+      tags: [MCP]
+      summary: 获取传感器读数 (MCP)
+      description: 通过MCP接口获取传感器读数
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 读数列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp:
+                      type: string
+                      format: date-time
+                    value:
+                      type: number
+                      format: float
+
+    post:
+      tags: [MCP]
+      summary: 添加传感器读数 (MCP)
+      description: 通过MCP接口添加传感器读数
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: number
+                  format: float
+                  example: 25.6
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: 读数添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Reading added successfully
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "温室1控制器"
+        location:
+          type: string
+          example: "温室1"
+        type:
+          type: string
+          example: "greenhouse_controller"
+        status:
+          type: string
+          enum: [active, inactive, maintenance, offline]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DeviceCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "温室1控制器"
+        location:
+          type: string
+          example: "温室1"
+        type:
+          type: string
+          example: "greenhouse_controller"
+        status:
+          type: string
+          enum: [active, inactive, maintenance, offline]
+          default: "active"
+
+    DeviceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, maintenance, offline]
+
+    Sensor:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        device_id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          example: "temperature"
+        name:
+          type: string
+          example: "温度传感器"
+        unit:
+          type: string
+          example: "°C"
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SensorCreate:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          example: "temperature"
+        name:
+          type: string
+          example: "温度传感器"
+        unit:
+          type: string
+          example: "°C"
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+          default: "active"
+
+    SensorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        unit:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+
+    Reading:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sensor_id:
+          type: integer
+          example: 1
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: float
+          example: 25.6
+        created_at:
+          type: string
+          format: date-time
+
+    ReadingCreate:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: number
+          format: float
+          example: 25.6
+        timestamp:
+          type: string
+          format: date-time
+
+    SensorStats:
+      type: object
+      properties:
+        sensor_id:
+          type: integer
+        type:
+          type: string
+        min:
+          type: number
+          format: float
+        max:
+          type: number
+          format: float
+        avg:
+          type: number
+          format: float
+        count:
+          type: integer
+        period:
+          type: string
+
+    Prediction:
+      type: object
+      properties:
+        id:
+          type: integer
+        sensor_id:
+          type: integer
+        predict_ts:
+          type: string
+          format: date-time
+        yhat:
+          type: number
+          format: double
+        yhat_lower:
+          type: number
+          format: double
+        yhat_upper:
+          type: number
+          format: double
+        metric_type:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    Alarm:
+      type: object
+      properties:
+        id:
+          type: integer
+        sensor_id:
+          type: integer
+        alarm_type:
+          type: string
+        threshold_value:
+          type: number
+          format: float
+        actual_value:
+          type: number
+          format: float
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        message:
+          type: string
+        status:
+          type: string
+          enum: [active, resolved, ignored]
+        resolved_at:
+          type: string
+          format: date-time
+        resolved_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserCreate:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+          default: user
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+
+  responses:
+    NotFound:
+      description: 资源未找到
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Not Found"
+            message: "Resource not found"
+            code: 404
+
+    Unauthorized:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Unauthorized"
+            message: "Invalid credentials"
+            code: 401
+
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Bad Request"
+            message: "Invalid request parameters"
+            code: 400
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            code: 500

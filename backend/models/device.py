@@ -1,44 +1,41 @@
 from extensions import db
 from datetime import datetime
 
-class Sensor(db.Model):
-    __tablename__ = 'sensors'
+class Device(db.Model):
+    __tablename__ = 'devices'
     
     id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey('devices.id'), nullable=False)
-    type = db.Column(db.String(50), nullable=False)
-    name = db.Column(db.String(255))
-    unit = db.Column(db.String(20))
+    name = db.Column(db.String(255), nullable=False)
+    location = db.Column(db.String(255))
+    type = db.Column(db.String(50))
     status = db.Column(db.String(50), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # 关系
-    readings = db.relationship('Reading', backref='sensor', lazy=True, cascade='all, delete-orphan')
+    sensors = db.relationship('Sensor', backref='device', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
         return {
             'id': self.id,
-            'device_id': self.device_id,
-            'type': self.type,
             'name': self.name,
-            'unit': self.unit,
+            'location': self.location,
+            'type': self.type,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
     @classmethod
-    def create(cls, device_id, sensor_type, name=None, unit=None, status='active'):
-        sensor = cls(
-            device_id=device_id,
-            type=sensor_type,
+    def create(cls, name, location=None, device_type=None, status='active'):
+        device = cls(
             name=name,
-            unit=unit,
+            location=location,
+            type=device_type,
             status=status
         )
-        db.session.add(sensor)
-        return sensor
+        db.session.add(device)
+        return device
     
     def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -47,12 +44,13 @@ class Sensor(db.Model):
         self.updated_at = datetime.utcnow()
         return self
     
+    def delete(self):
+        self.status = 'deleted'
+        return self
+    
     @property
     def is_active(self):
         return self.status == 'active'
     
-    @property
-    def latest_reading(self):
-        if self.readings:
-            return sorted(self.readings, key=lambda r: r.timestamp, reverse=True)[0]
-        return None
+    def __repr__(self):
+        return f"<Device(id={self.id}, name='{self.name}', status='{self.status}')>"

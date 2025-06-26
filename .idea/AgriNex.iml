@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/frontend" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mcp-server" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/sensor-client" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="agrinex" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

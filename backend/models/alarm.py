@@ -1,4 +1,4 @@
-from extensions import db
+from backend.extensions import db
 from datetime import datetime
 
 class Alarm(db.Model):
@@ -11,8 +11,9 @@ class Alarm(db.Model):
     actual_value = db.Column(db.Float)
     severity = db.Column(db.String(20), default='medium')  # low/medium/high
     message = db.Column(db.Text)
-    is_resolved = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(20), default='active')  # active/resolved
     resolved_at = db.Column(db.DateTime)
+    resolved_by = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
@@ -27,8 +28,9 @@ class Alarm(db.Model):
             'actual_value': self.actual_value,
             'severity': self.severity,
             'message': self.message,
-            'is_resolved': self.is_resolved,
+            'status': self.status,
             'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
+            'resolved_by': self.resolved_by,
             'created_at': self.created_at.isoformat()
         }
     
@@ -45,8 +47,10 @@ class Alarm(db.Model):
         db.session.add(alarm)
         return alarm
     
-    def resolve(self):
+    def resolve(self, resolved_by=None):
         """解决告警"""
-        self.is_resolved = True
+        self.status = 'resolved'
         self.resolved_at = datetime.utcnow()
+        if resolved_by:
+            self.resolved_by = resolved_by
         return self

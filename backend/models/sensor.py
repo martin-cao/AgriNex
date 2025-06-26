@@ -1,4 +1,4 @@
-from extensions import db
+from backend.extensions import db
 from datetime import datetime
 
 class Sensor(db.Model):
@@ -56,3 +56,43 @@ class Sensor(db.Model):
         if self.readings:
             return sorted(self.readings, key=lambda r: r.timestamp, reverse=True)[0]
         return None
+    
+    @property
+    def is_multimedia_sensor(self):
+        """判断是否为多媒体传感器"""
+        return self.type in ['camera', 'video_camera', 'surveillance_camera']
+    
+    @property
+    def is_numeric_sensor(self):
+        """判断是否为数值传感器"""
+        return self.type in ['temperature', 'humidity', 'light', 'pressure', 'ph', 'soil_moisture']
+    
+    @property
+    def supported_data_types(self):
+        """获取支持的数据类型"""
+        if self.is_numeric_sensor:
+            return ['numeric']
+        elif self.is_multimedia_sensor:
+            return ['image', 'video']
+        else:
+            return ['numeric', 'image', 'video']  # 通用传感器支持所有类型
+    
+    def get_readings_by_type(self, data_type=None, limit=None):
+        """根据数据类型获取读数"""
+        from backend.models.reading import Reading
+        query = Reading.query.filter_by(sensor_id=self.id)
+        
+        if data_type:
+            query = query.filter_by(data_type=data_type)
+            
+        query = query.order_by(Reading.timestamp.desc())
+        
+        if limit:
+            query = query.limit(limit)
+            
+        return query.all()
+    
+    def get_latest_reading_by_type(self, data_type=None):
+        """获取指定类型的最新读数"""
+        readings = self.get_readings_by_type(data_type=data_type, limit=1)
+        return readings[0] if readings else None

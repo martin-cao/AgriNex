@@ -44,6 +44,13 @@ class Config:
     # Redis 配置 (用于缓存和限流)
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     
+    # MinIO/对象存储配置
+    MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'localhost:9000')
+    MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
+    MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minioadmin')
+    MINIO_SECURE = os.getenv('MINIO_SECURE', 'False').lower() == 'true'
+    LOCAL_STORAGE_PATH = os.getenv('LOCAL_STORAGE_PATH', './storage')
+    
     # 应用配置
     ITEMS_PER_PAGE = 100
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB 最大文件上传

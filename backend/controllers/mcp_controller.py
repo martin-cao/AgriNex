@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
-from models.device import Device
-from models.sensor import Sensor
-from models.reading import Reading
-from extensions import db
+from backend.models.device import Device
+from backend.models.sensor import Sensor
+from backend.models.reading import Reading
+from backend.extensions import db
 
 mcp_bp = Blueprint('mcp', __name__, url_prefix='/api/v1/mcp')
 
@@ -58,10 +58,13 @@ def get_sensors(device_id):
 @mcp_bp.route('/sensors/<int:sensor_id>/readings', methods=['POST'])
 def add_reading(sensor_id):
     data = request.get_json()
-    new_reading = Reading(
+    
+    # 使用Reading模型的create_numeric方法
+    new_reading = Reading.create_numeric(
         sensor_id=sensor_id,
-        timestamp=data.get('timestamp'),
-        value=data['value']
+        value=data['value'],
+        unit=data.get('unit'),
+        metadata=data.get('metadata')
     )
     db.session.add(new_reading)
     db.session.commit()
@@ -71,7 +74,4 @@ def add_reading(sensor_id):
 @mcp_bp.route('/sensors/<int:sensor_id>/readings', methods=['GET'])
 def get_readings(sensor_id):
     readings = Reading.query.filter_by(sensor_id=sensor_id).all()
-    return jsonify([{
-        'timestamp': reading.timestamp.isoformat() if reading.timestamp else None,
-        'value': reading.value
-    } for reading in readings])
+    return jsonify([reading.to_dict() for reading in readings])

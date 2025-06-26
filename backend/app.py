@@ -1,208 +1,216 @@
+# backend/app.py
+"""
+AgriNex - 农业物联网数据管理平台
+统一版本，支持三层架构（Device-Sensor-Reading）和对象存储
+"""
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
-import pymysql
-from marshmallow import Schema, fields, ValidationError
-from prophet import Prophet
-import pandas as pd
 import os
+import logging
+from datetime import datetime
 
-# 初始化数据库连接
-pymysql.install_as_MySQLdb()
-load_dotenv()
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# 初始化 Flask 应用
-app = Flask(__name__)
-CORS(app)
-
-# 配置数据库连接
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL',
-                                                  'mysql://root:password@localhost/agriot')  # 修改为你的数据库连接信息
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
-
-# 数据模型定义
-class Device(db.Model):
-    __tablename__ = 'devices'
-    device_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    location = db.Column(db.String(255))
-    type = db.Column(db.String(50))
-    status = db.Column(db.String(50))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    readings = db.relationship('Reading', backref='device', lazy=True)
-
-
-class Reading(db.Model):
-    __tablename__ = 'readings'
-    reading_id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey('devices.device_id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    temperature = db.Column(db.Float)
-    humidity = db.Column(db.Float)
-    light = db.Column(db.Float)
-
-    device = db.relationship('Device', backref=db.backref('readings', lazy=True))
-
-
-class Prediction(db.Model):
-    __tablename__ = 'predictions'
-    id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey('devices.device_id'), nullable=False)
-    predict_ts = db.Column(db.DateTime, default=datetime.utcnow)
-    yhat = db.Column(db.Float)
-    yhat_lower = db.Column(db.Float)
-    yhat_upper = db.Column(db.Float)
-
-    device = db.relationship('Device', backref=db.backref('predictions', lazy=True))
-
-
-# 数据验证 Schema
-class ControlDeviceSchema(Schema):
-    target = fields.Str(required=True)
-    state = fields.Str(required=True)
-
-
-# 基本路由
-@app.route('/')
-def hello():
-    return jsonify({"message": "AgriNex API is running!"})
-
-
-@app.route('/api/health')
-def health():
-    return jsonify({"status": "healthy"})
-
-# 使用 before_request 代替 before_first_request
-@app.before_request
-def before_request_func():
-    for rule in app.url_map.iter_rules():
-        print(f"Route: {rule} -> {rule.endpoint}")
-
-
-# 获取设备列表
-@app.route('/api/devices', methods=['GET'])
-def get_devices():
-    devices = Device.query.all()
-    return jsonify(
-        [{'device_id': device.device_id, 'name': device.name, 'location': device.location} for device in devices])
-
-
-# 获取设备最新读数
-@app.route('/api/devices/<int:device_id>/readings/latest', methods=['GET'])
-def get_latest_reading(device_id):
-    reading = Reading.query.filter_by(device_id=device_id).order_by(Reading.timestamp.desc()).first()
-    if reading:
-        return jsonify({
-            'device_id': device_id,
-            'timestamp': reading.timestamp.isoformat(),
-            'temperature': reading.temperature,
-            'humidity': reading.humidity,
-            'light': reading.light
-        })
-    return jsonify({'error': 'No data available'}), 404
-
-
-# 获取设备历史读数，支持分页
-@app.route('/api/devices/<int:device_id>/readings', methods=['GET'])
-def get_readings(device_id):
-    limit = request.args.get('limit', 100, type=int)
-    page = request.args.get('page', 1, type=int)  # 当前页码
-    readings = Reading.query.filter_by(device_id=device_id).order_by(Reading.timestamp.desc()).paginate(page, limit,
-                                                                                                        False)
-    return jsonify([{
-        'timestamp': reading.timestamp.isoformat(),
-        'temperature': reading.temperature,
-        'humidity': reading.humidity,
-        'light': reading.light
-    } for reading in readings.items])
-
-
-# 获取设备的统计信息
-@app.route('/api/devices/<int:device_id>/stats', methods=['GET'])
-def get_stats(device_id):
-    readings = Reading.query.filter_by(device_id=device_id).all()
-    if not readings:
-        return jsonify({'error': 'No data available'}), 404
-
-    temperatures = [reading.temperature for reading in readings]
-    humidity = [reading.humidity for reading in readings]
-    light = [reading.light for reading in readings]
-
-    return jsonify({
-        'device_id': device_id,
-        'metrics': {
-            'temperature': {
-                'min': min(temperatures),
-                'max': max(temperatures),
-                'avg': sum(temperatures) / len(temperatures)
-            },
-            'humidity': {
-                'min': min(humidity),
-                'max': max(humidity),
-                'avg': sum(humidity) / len(humidity)
-            },
-            'light': {
-                'min': min(light),
-                'max': max(light),
-                'avg': sum(light) / len(light)
-            }
+def create_app(config_name='Config'):
+    """应用工厂函数"""
+    app = Flask(__name__)
+    
+    # 配置CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://localhost:8080"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
         }
     })
-
-
-# 获取设备的预测数据
-@app.route('/api/devices/<int:device_id>/predict', methods=['GET'])
-def get_prediction(device_id):
-    # 获取历史数据
-    readings = Reading.query.filter_by(device_id=device_id).order_by(Reading.timestamp.desc()).limit(100).all()
-    df = pd.DataFrame([{
-        'ds': reading.timestamp,
-        'y': reading.temperature  # 假设进行温度预测
-    } for reading in readings])
-
-    # 使用 Prophet 进行预测
-    model = Prophet()
-    model.fit(df)
-    future = model.make_future_dataframe(df, periods=10, freq='H')
-    forecast = model.predict(future)
-
-    prediction_data = [
-        {'timestamp': forecast['ds'][i], 'temperature': forecast['yhat'][i], 'humidity': forecast['yhat_lower'][i]}
-        for i in range(len(forecast))
-    ]
-    return jsonify({
-        'device_id': device_id,
-        'forecast': prediction_data
-    })
-
-
-# 控制设备开关
-@app.route('/api/devices/<int:device_id>/control', methods=['POST'])
-def control_device(device_id):
-    data = request.get_json()
-    # 数据验证
+    
+    # 加载配置
     try:
-        validated_data = ControlDeviceSchema().load(data)
-    except ValidationError as err:
-        return jsonify(err.messages), 400
+        from config import Config
+        app.config.from_object(Config)
+        logger.info("Configuration loaded successfully")
+    except ImportError as e:
+        logger.warning(f"Failed to load config: {e}. Using default settings.")
+        app.config.update({
+            'SECRET_KEY': 'dev-secret-key',
+            'SQLALCHEMY_DATABASE_URI': 'sqlite:///agrinex.db',
+            'SQLALCHEMY_TRACK_MODIFICATIONS': False,
+            'JWT_SECRET_KEY': 'jwt-secret-key',
+            'JWT_ACCESS_TOKEN_EXPIRES': 900
+        })
+    
+    # 初始化扩展
+    try:
+        from extensions import db, jwt
+        db.init_app(app)
+        jwt.init_app(app)
+        logger.info("Extensions initialized successfully")
+    except ImportError as e:
+        logger.warning(f"Failed to initialize extensions: {e}")
+    
+    # 注册蓝图
+    register_blueprints(app)
+    
+    # 创建数据库表
+    with app.app_context():
+        try:
+            db.create_all()
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create database tables: {e}")
+    
+    # 注册错误处理器
+    register_error_handlers(app)
+    
+    # 注册钩子函数
+    register_hooks(app)
+    
+    return app
 
-    target = validated_data['target']
-    state = validated_data['state']
+def register_blueprints(app):
+    """注册蓝图"""
+    try:
+        # 主要路由
+        from controllers.main_controller import main_bp
+        app.register_blueprint(main_bp)
+        logger.info("Registered main blueprint")
+        
+        # 设备管理API
+        from controllers.device_controller_unified import device_bp
+        app.register_blueprint(device_bp)
+        logger.info("Registered device blueprint")
+        
+        # 传感器API
+        try:
+            from controllers.sensor_controller import sensor_bp
+            app.register_blueprint(sensor_bp)
+            logger.info("Registered sensor blueprint")
+        except ImportError:
+            logger.warning("Sensor controller not available")
+        
+        # 预测API
+        try:
+            from controllers.forecast_controller import forecast_bp
+            app.register_blueprint(forecast_bp)
+            logger.info("Registered forecast blueprint")
+        except ImportError:
+            logger.warning("Forecast controller not available")
+        
+        # 告警API
+        try:
+            from controllers.alarm_controller import alarm_bp
+            app.register_blueprint(alarm_bp)
+            logger.info("Registered alarm blueprint")
+        except ImportError:
+            logger.warning("Alarm controller not available")
+        
+        # 用户认证
+        try:
+            from controllers.auth_controller import auth_bp
+            app.register_blueprint(auth_bp, url_prefix='/api/auth')
+            logger.info("Registered auth blueprint")
+        except ImportError:
+            logger.warning("Auth controller not available")
+        
+        # MCP服务
+        try:
+            from controllers.mcp_controller import mcp_bp
+            app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
+            logger.info("Registered MCP blueprint")
+        except ImportError:
+            logger.warning("MCP controller not available")
+            
+    except ImportError as e:
+        logger.error(f"Failed to register blueprints: {e}")
+        
+        # 注册基本的健康检查路由作为fallback
+        @app.route('/api/health')
+        def health_check():
+            return jsonify({
+                'status': 'ok',
+                'message': 'AgriNex Backend is running',
+                'timestamp': datetime.utcnow().isoformat()
+            })
 
-    # 假设控制成功，返回成功信息
-    return jsonify({
-        'device_id': device_id,
-        'target': target,
-        'state': state,
-        'status': 'success'
-    })
+def register_error_handlers(app):
+    """注册错误处理器"""
+    
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            'success': False,
+            'error': 'Bad Request',
+            'message': str(error.description)
+        }), 400
+    
+    @app.errorhandler(401)
+    def unauthorized(error):
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized',
+            'message': 'Authentication required'
+        }), 401
+    
+    @app.errorhandler(403)
+    def forbidden(error):
+        return jsonify({
+            'success': False,
+            'error': 'Forbidden',
+            'message': 'Insufficient permissions'
+        }), 403
+    
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            'success': False,
+            'error': 'Not Found',
+            'message': 'Resource not found'
+        }), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        logger.error(f"Internal server error: {error}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal Server Error',
+            'message': 'An unexpected error occurred'
+        }), 500
 
+def register_hooks(app):
+    """注册请求钩子"""
+    
+    @app.before_request
+    def log_request():
+        if app.config.get('DEBUG'):
+            logger.debug(f"{request.method} {request.path} - {request.remote_addr}")
+    
+    @app.after_request
+    def after_request(response):
+        # 添加安全头
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        return response
 
-# 启动 Flask 应用
+# 创建应用实例
+app = create_app()
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    # 运行开发服务器
+    port = int(os.getenv('PORT', 8000))
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Starting AgriNex Backend on port {port}")
+    logger.info(f"Debug mode: {debug}")
+    
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=debug
+    )

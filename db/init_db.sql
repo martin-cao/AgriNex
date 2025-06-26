@@ -52,19 +52,54 @@ CREATE TABLE `sensors` (
   CONSTRAINT `fk_sensors_device` FOREIGN KEY (`device_id`) REFERENCES `devices` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='传感器表';
 
--- 4. 读数表 (readings)
+-- 4. 读数表 (readings) - 支持多种数据类型
 DROP TABLE IF EXISTS `readings`;
 CREATE TABLE `readings` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '读数ID',
   `sensor_id` int(11) NOT NULL COMMENT '传感器ID',
   `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '时间戳',
-  `value` float NOT NULL COMMENT '传感器读数',
+  
+  -- 数据类型标识
+  `data_type` varchar(20) NOT NULL DEFAULT 'numeric' COMMENT '数据类型: numeric/image/video',
+  
+  -- 数值型数据字段（温度、湿度、光照等）
+  `numeric_value` float COMMENT '数值型读数',
+  `unit` varchar(10) COMMENT '单位: °C, %, lux等',
+  
+  -- 文件型数据字段（图片、视频等）
+  `file_path` varchar(512) COMMENT '本地文件存储路径（备份）',
+  `file_size` bigint COMMENT '文件大小(字节)',
+  `file_format` varchar(10) COMMENT '文件格式: jpg, mp4等',
+  
+  -- 对象存储相关字段
+  `storage_backend` varchar(20) DEFAULT 'minio' COMMENT '存储后端: local/minio/dual',
+  `bucket_name` varchar(100) COMMENT 'MinIO存储桶名称',
+  `object_key` varchar(500) COMMENT '对象存储的key路径',
+  `object_url` varchar(1000) COMMENT '对象访问URL',
+  `object_etag` varchar(100) COMMENT '对象ETag（用于完整性校验）',
+  
+  -- 额外元数据
+  `meta_info` text COMMENT 'JSON格式的额外信息',
+  
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  
   PRIMARY KEY (`id`),
   KEY `idx_sensor_timestamp` (`sensor_id`, `timestamp`),
   KEY `idx_timestamp` (`timestamp`),
-  CONSTRAINT `fk_readings_sensor` FOREIGN KEY (`sensor_id`) REFERENCES `sensors` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='传感器读数表';
+  KEY `idx_data_type` (`data_type`),
+  KEY `idx_sensor_data_type` (`sensor_id`, `data_type`),
+  CONSTRAINT `fk_readings_sensor` FOREIGN KEY (`sensor_id`) REFERENCES `sensors` (`id`) ON DELETE CASCADE,
+  
+  -- 约束：根据数据类型检查必需字段
+  CONSTRAINT `chk_numeric_data` CHECK (
+    (data_type = 'numeric' AND numeric_value IS NOT NULL) OR 
+    (data_type != 'numeric')
+  ),
+  CONSTRAINT `chk_file_data` CHECK (
+    (data_type IN ('image', 'video') AND file_path IS NOT NULL AND file_format IS NOT NULL) OR 
+    (data_type NOT IN ('image', 'video'))
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='传感器读数表(支持多种数据类型)';
 
 -- 5. 预测表 (predictions)
 DROP TABLE IF EXISTS `predictions`;

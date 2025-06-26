@@ -73,43 +73,44 @@ def create_app(config_name='Config'):
     
     return app
 
+
 def register_blueprints(app):
     """注册蓝图"""
     try:
         # 主要路由
         from controllers.main_controller import main_bp
-        app.register_blueprint(main_bp)
+        app.register_blueprint(main_bp, url_prefix='/api')  # 添加 url_prefix
         logger.info("Registered main blueprint")
-        
+
         # 设备管理API
-        from controllers.device_controller_unified import device_bp
-        app.register_blueprint(device_bp)
+        from controllers.device_controller import device_bp
+        app.register_blueprint(device_bp, url_prefix='/api/devices')  # 添加 url_prefix
         logger.info("Registered device blueprint")
-        
+
         # 传感器API
         try:
             from controllers.sensor_controller import sensor_bp
-            app.register_blueprint(sensor_bp)
+            app.register_blueprint(sensor_bp, url_prefix='/api/sensors')  # 添加 url_prefix
             logger.info("Registered sensor blueprint")
         except ImportError:
             logger.warning("Sensor controller not available")
-        
+
         # 预测API
         try:
             from controllers.forecast_controller import forecast_bp
-            app.register_blueprint(forecast_bp)
+            app.register_blueprint(forecast_bp, url_prefix='/api/forecasts')  # 添加 url_prefix
             logger.info("Registered forecast blueprint")
         except ImportError:
             logger.warning("Forecast controller not available")
-        
+
         # 告警API
         try:
             from controllers.alarm_controller import alarm_bp
-            app.register_blueprint(alarm_bp)
+            app.register_blueprint(alarm_bp, url_prefix='/api/alarms')  # 添加 url_prefix
             logger.info("Registered alarm blueprint")
         except ImportError:
             logger.warning("Alarm controller not available")
-        
+
         # 用户认证
         try:
             from controllers.auth_controller import auth_bp
@@ -117,7 +118,7 @@ def register_blueprints(app):
             logger.info("Registered auth blueprint")
         except ImportError:
             logger.warning("Auth controller not available")
-        
+
         # MCP服务
         try:
             from controllers.mcp_controller import mcp_bp
@@ -125,10 +126,10 @@ def register_blueprints(app):
             logger.info("Registered MCP blueprint")
         except ImportError:
             logger.warning("MCP controller not available")
-            
+
     except ImportError as e:
         logger.error(f"Failed to register blueprints: {e}")
-        
+
         # 注册基本的健康检查路由作为fallback
         @app.route('/api/health')
         def health_check():
@@ -137,7 +138,6 @@ def register_blueprints(app):
                 'message': 'AgriNex Backend is running',
                 'timestamp': datetime.utcnow().isoformat()
             })
-
 def register_error_handlers(app):
     """注册错误处理器"""
     

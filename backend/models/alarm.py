@@ -3,6 +3,7 @@ from datetime import datetime
 
 class Alarm(db.Model):
     __tablename__ = 'alarms'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     sensor_id = db.Column(db.Integer, db.ForeignKey('sensors.id'), nullable=False)

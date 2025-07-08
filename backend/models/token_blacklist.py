@@ -11,7 +11,7 @@ except ImportError:
     redis = None
     RedisError = Exception
 
-from utils.redis_client import redis_client
+from backend.utils.redis_client import redis_client
 
 # 配置日志
 logger = logging.getLogger(__name__)

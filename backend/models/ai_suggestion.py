@@ -3,6 +3,7 @@ from datetime import datetime
 
 class AISuggestion(db.Model):
     __tablename__ = 'ai_suggestions'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     sensor_id = db.Column(db.Integer, db.ForeignKey('sensors.id'))

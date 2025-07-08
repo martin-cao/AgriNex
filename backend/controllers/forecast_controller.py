@@ -86,3 +86,39 @@ def get_latest_predictions(sensor_id):
             'duration_hours': 24
         }
     })
+
+@forecast_bp.route('/fields', methods=['GET'])
+def get_fields():
+    """获取可预测的字段列表"""
+    fields = ForecastService.get_numeric_fields()
+    return jsonify({'fields': fields})
+
+@forecast_bp.route('/<int:device_id>', methods=['GET'])
+def predict(device_id):
+    """
+    设备预测接口（聚合设备下所有传感器数据）
+    参数:
+      - field: 要预测的字段（如 numeric_value）
+      - periods: 预测步数（如24，表示未来24小时）
+      - freq: 预测频率（如 'H' 小时，'D' 天）
+    """
+    field = request.args.get('field', 'numeric_value')
+    periods = int(request.args.get('periods', 24))
+    freq = request.args.get('freq', 'H')
+    
+    if field not in ForecastService.get_numeric_fields():
+        return jsonify({'error': f'字段 {field} 不可预测'}), 400
+    
+    # 使用设备级别的预测方法
+    result, err = ForecastService.predict_by_device(device_id, field, periods, freq)
+    if err:
+        return jsonify({'error': err}), 400
+    
+    # 可选：保存预测结果到第一个传感器（如果需要的话）
+    # TODO: 考虑是否需要为设备级别预测创建特殊的保存逻辑
+    
+    return jsonify({
+        'device_id': device_id,
+        'field': field,
+        'forecast': result
+    })

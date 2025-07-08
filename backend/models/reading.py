@@ -4,6 +4,7 @@ import json
 
 class Reading(db.Model):
     __tablename__ = 'readings'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.BigInteger, primary_key=True)
     sensor_id = db.Column(db.Integer, db.ForeignKey('sensors.id'), nullable=False)

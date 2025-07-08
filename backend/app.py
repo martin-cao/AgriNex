@@ -30,40 +30,24 @@ def create_app(config_name='Config'):
         }
     })
     
-    # 加载配置
-    try:
-        from config import Config
-        app.config.from_object(Config)
-        logger.info("Configuration loaded successfully")
-    except ImportError as e:
-        logger.warning(f"Failed to load config: {e}. Using default settings.")
-        app.config.update({
-            'SECRET_KEY': 'dev-secret-key',
-            'SQLALCHEMY_DATABASE_URI': 'sqlite:///agrinex.db',
-            'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-            'JWT_SECRET_KEY': 'jwt-secret-key',
-            'JWT_ACCESS_TOKEN_EXPIRES': 900
-        })
+    # 配置应用
+    from backend.config import Config
+    app.config.from_object(Config)
+    logger.info("Configuration loaded successfully")
     
     # 初始化扩展
-    try:
-        from extensions import db, jwt
-        db.init_app(app)
-        jwt.init_app(app)
-        logger.info("Extensions initialized successfully")
-    except ImportError as e:
-        logger.warning(f"Failed to initialize extensions: {e}")
+    from backend.extensions import init_extensions
+    init_extensions(app)
+    logger.info("Extensions initialized successfully")
     
     # 注册蓝图
     register_blueprints(app)
     
     # 创建数据库表
     with app.app_context():
-        try:
-            db.create_all()
-            logger.info("Database tables created successfully")
-        except Exception as e:
-            logger.error(f"Failed to create database tables: {e}")
+        # 初始化数据库，连接失败时直接抛出异常
+        init_database(app)
+        logger.info("Database initialization completed")
     
     # 注册错误处理器
     register_error_handlers(app)
@@ -73,71 +57,43 @@ def create_app(config_name='Config'):
     
     return app
 
-
 def register_blueprints(app):
     """注册蓝图"""
-    try:
-        # 主要路由
-        from controllers.main_controller import main_bp
-        app.register_blueprint(main_bp, url_prefix='/api')  # 添加 url_prefix
-        logger.info("Registered main blueprint")
+    # 主要路由
+    from backend.controllers.main_controller import main_bp
+    app.register_blueprint(main_bp, url_prefix='/api')
+    logger.info("Registered main blueprint")
 
-        # 设备管理API
-        from controllers.device_controller import device_bp
-        app.register_blueprint(device_bp, url_prefix='/api/devices')  # 添加 url_prefix
-        logger.info("Registered device blueprint")
+    # 设备管理API
+    from backend.controllers.device_controller import device_bp
+    app.register_blueprint(device_bp, url_prefix='/api/devices')
+    logger.info("Registered device blueprint")
 
-        # 传感器API
-        try:
-            from controllers.sensor_controller import sensor_bp
-            app.register_blueprint(sensor_bp, url_prefix='/api/sensors')  # 添加 url_prefix
-            logger.info("Registered sensor blueprint")
-        except ImportError:
-            logger.warning("Sensor controller not available")
+    # 传感器API
+    from backend.controllers.sensor_controller import sensor_bp
+    app.register_blueprint(sensor_bp, url_prefix='/api/sensors')
+    logger.info("Registered sensor blueprint")
 
-        # 预测API
-        try:
-            from controllers.forecast_controller import forecast_bp
-            app.register_blueprint(forecast_bp, url_prefix='/api/forecasts')  # 添加 url_prefix
-            logger.info("Registered forecast blueprint")
-        except ImportError:
-            logger.warning("Forecast controller not available")
+    # 预测API
+    from backend.controllers.forecast_controller import forecast_bp
+    app.register_blueprint(forecast_bp, url_prefix='/api/forecasts')
+    logger.info("Registered forecast blueprint")
 
-        # 告警API
-        try:
-            from controllers.alarm_controller import alarm_bp
-            app.register_blueprint(alarm_bp, url_prefix='/api/alarms')  # 添加 url_prefix
-            logger.info("Registered alarm blueprint")
-        except ImportError:
-            logger.warning("Alarm controller not available")
+    # 告警API
+    from backend.controllers.alarm_controller import alarm_bp
+    app.register_blueprint(alarm_bp, url_prefix='/api/alarms')
+    logger.info("Registered alarm blueprint")
 
-        # 用户认证
-        try:
-            from controllers.auth_controller import auth_bp
-            app.register_blueprint(auth_bp, url_prefix='/api/auth')
-            logger.info("Registered auth blueprint")
-        except ImportError:
-            logger.warning("Auth controller not available")
+    # 用户认证
+    from backend.controllers.auth_controller import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    logger.info("Registered auth blueprint")
 
-        # MCP服务
-        try:
-            from controllers.mcp_controller import mcp_bp
-            app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
-            logger.info("Registered MCP blueprint")
-        except ImportError:
-            logger.warning("MCP controller not available")
+    # MCP服务
+    from backend.controllers.mcp_controller import mcp_bp
+    app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
+    logger.info("Registered MCP blueprint")
 
-    except ImportError as e:
-        logger.error(f"Failed to register blueprints: {e}")
-
-        # 注册基本的健康检查路由作为fallback
-        @app.route('/api/health')
-        def health_check():
-            return jsonify({
-                'status': 'ok',
-                'message': 'AgriNex Backend is running',
-                'timestamp': datetime.utcnow().isoformat()
-            })
 def register_error_handlers(app):
     """注册错误处理器"""
     
@@ -197,6 +153,63 @@ def register_hooks(app):
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         return response
+
+def init_database(app):
+    """初始化MySQL数据库"""
+    from backend.extensions import db
+    from sqlalchemy import inspect
+    
+    # 测试数据库连接
+    try:
+        # 尝试连接数据库
+        with db.engine.connect() as conn:
+            logger.info("Database connection successful")
+    except Exception as e:
+        logger.error(f"Failed to connect to MySQL database: {e}")
+        raise RuntimeError(f"Database connection failed: {e}")
+    
+    # 检查现有表
+    inspector = inspect(db.engine)
+    existing_tables = inspector.get_table_names()
+    logger.info(f"Found existing tables: {', '.join(existing_tables) if existing_tables else 'none'}")
+    
+    # 创建所有表
+    db.create_all()
+    logger.info("Database tables created/verified successfully")
+    
+    # 如果没有现有表，初始化基础数据
+    if not existing_tables:
+        logger.info("Initializing base data...")
+        init_base_data()
+    else:
+        logger.info("Database tables already exist, skipping data initialization.")
+
+def init_base_data():
+    """初始化基础数据"""
+    from backend.models.user import User
+    from backend.extensions import db
+    
+    # 检查是否已存在用户
+    existing_admin = User.query.filter_by(username="admin").first()
+    if existing_admin:
+        logger.info("Admin user already exists")
+    else:
+        # 创建管理员用户
+        admin = User.create(username="admin", password="agrinex123", role="admin")
+        db.session.commit()
+        logger.info("Created admin user")
+    
+    # 检查测试用户
+    existing_test = User.query.filter_by(username="test").first()
+    if existing_test:
+        logger.info("Test user already exists")
+    else:
+        # 创建测试用户
+        user = User.create(username="test", password="test123", role="user")
+        db.session.commit()
+        logger.info("Created test user")
+    
+    # 可以添加更多初始化数据，如设备、传感器等
 
 # 创建应用实例
 app = create_app()

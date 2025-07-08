@@ -5,16 +5,11 @@ class Config:
     # Flask 配置
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
-    # 数据库配置（支持降级到SQLite）
+    # 数据库配置（仅支持MySQL）
     DATABASE_URL = os.getenv('DATABASE_URL')
-    if DATABASE_URL:
-        SQLALCHEMY_DATABASE_URI = DATABASE_URL
-    else:
-        # 降级到SQLite（开发模式）
-        if os.getenv('ALLOW_NO_DB', '').lower() == 'true':
-            SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'  # 内存数据库
-        else:
-            SQLALCHEMY_DATABASE_URI = 'sqlite:///agrinex.db'  # 文件数据库
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is required for MySQL connection")
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {

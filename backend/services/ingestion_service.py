@@ -7,10 +7,10 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from backend.models.reading import Reading
-from backend.models.sensor import Sensor
-from backend.extensions import db
-from backend.services.storage_service import StorageService
+from models.reading import Reading
+from models.sensor import Sensor
+from extensions import db
+from services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class IngestionService:
             
             if not sensor:
                 # 首先确保有默认设备
-                from backend.models.device import Device
+                from models.device import Device
                 default_device = Device.query.filter_by(name="默认设备").first()
                 if not default_device:
                     default_device = Device.create(

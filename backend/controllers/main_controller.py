@@ -82,21 +82,35 @@ def health_check():
     """健康检查端点"""
     try:
         # 检查数据库连接
-        from backend.extensions import db
+        from extensions import db
         with db.engine.connect() as conn:
             conn.execute(db.text('SELECT 1'))
         
         # 检查MQTT服务状态
-        from backend.services.mqtt_service import mqtt_service
-        mqtt_status = mqtt_service.get_connection_status()
+        mqtt_status = 'unknown'
+        try:
+            from services.mqtt_service import mqtt_service
+            mqtt_status = mqtt_service.get_connection_status()
+        except Exception:
+            mqtt_status = 'unavailable'
+        
+        # 检查告警监控状态
+        alarm_status = 'unknown'
+        try:
+            from services.alarm_monitor import alarm_monitor
+            alarm_status = 'running' if alarm_monitor.is_running else 'stopped'
+        except Exception:
+            alarm_status = 'unavailable'
         
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'services': {
                 'database': 'connected',
-                'mqtt': mqtt_status
-            }
+                'mqtt': mqtt_status,
+                'alarm_monitor': alarm_status
+            },
+            'version': '2.0.0'
         }), 200
     except Exception as e:
         return jsonify({
@@ -116,7 +130,7 @@ def system_status():
     
     # 检查数据库连接
     try:
-        from backend.extensions import db
+        from extensions import db
         with db.engine.connect() as conn:
             conn.execute(db.text('SELECT 1'))
         status['components']['database'] = 'connected'
@@ -125,7 +139,7 @@ def system_status():
     
     # 检查MinIO连接
     try:
-        from backend.services.storage_service import storage_service
+        from services.storage_service import storage_service
         if storage_service.minio_client:
             # 尝试列出bucket
             list(storage_service.minio_client.list_buckets())
@@ -148,7 +162,7 @@ def system_status():
     
     # 检查MQTT连接
     try:
-        from backend.services.mqtt_service import mqtt_service
+        from services.mqtt_service import mqtt_service
         mqtt_status = mqtt_service.get_connection_status()
         if mqtt_status.get('connected', False):
             status['components']['mqtt'] = 'connected'

@@ -11,7 +11,7 @@ except ImportError:
     redis = None
     RedisError = Exception
 
-from backend.utils.redis_client import redis_client
+from utils.redis_client import redis_client
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ class TokenBlacklistService:
         """MySQL降级撤销"""
         try:
             # 动态导入，避免循环依赖
-            from backend.extensions import db
+            from extensions import db
             from sqlalchemy import text
             
             # 使用简单的临时表
@@ -212,7 +212,7 @@ class TokenBlacklistService:
     def _mysql_fallback_check(self, jti):
         """MySQL降级检查"""
         try:
-            from backend.extensions import db
+            from extensions import db
             from sqlalchemy import text
             
             result = db.session.execute(text("""

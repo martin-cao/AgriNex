@@ -1,5 +1,5 @@
 from datetime import datetime
-from backend.extensions import db
+from extensions import db
 import json
 
 class Reading(db.Model):

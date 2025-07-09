@@ -1,4 +1,4 @@
-from backend.extensions import db
+from extensions import db
 from datetime import datetime
 
 class Sensor(db.Model):
@@ -80,7 +80,7 @@ class Sensor(db.Model):
     
     def get_readings_by_type(self, data_type=None, limit=None):
         """根据数据类型获取读数"""
-        from backend.models.reading import Reading
+        from models.reading import Reading
         query = Reading.query.filter_by(sensor_id=self.id)
         
         if data_type:

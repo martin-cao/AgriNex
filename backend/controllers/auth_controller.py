@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
-from backend.extensions import db
+from extensions import db
 import os
 import logging
 
@@ -52,7 +52,7 @@ def login():
         
         # 生产模式：数据库验证
         try:
-            from backend.models.user import User
+            from models.user import User
             user = User.find_by_username(username)
             if not user:
                 logger.warning("Login attempt with non-existent username: %s", username)

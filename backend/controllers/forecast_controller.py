@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from backend.models.sensor import Sensor
-from backend.models.prediction import Prediction
-from backend.services.forecast_service import ForecastService
-from backend.extensions import db
+from models.sensor import Sensor
+from models.prediction import Prediction
+from services.forecast_service import ForecastService
+from extensions import db
 
 forecast_bp = Blueprint('forecast', __name__, url_prefix='/api/forecast')
 

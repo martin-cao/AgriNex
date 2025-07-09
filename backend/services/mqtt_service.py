@@ -7,7 +7,8 @@ from typing import Dict, Any, Optional, Callable
 import paho.mqtt.client as mqtt
 from flask import current_app
 
-from backend.services.ingestion_service import IngestionService
+from services.ingestion_service import IngestionService
+from services.alarm_monitor import alarm_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,22 @@ class MQTTService:
                     reading = self.ingestion_service.ingest_mqtt_message(topic, payload)
                     if reading:
                         logger.info("传感器数据存储成功: ID=%s", reading.id)
+                        
+                        # 检查告警条件（仅对数值型数据）
+                        if reading.data_type == 'numeric' and reading.numeric_value is not None:
+                            try:
+                                triggered_alarms = alarm_monitor.check_reading_immediately(
+                                    sensor_id=reading.sensor_id,
+                                    value=reading.numeric_value,
+                                    timestamp=reading.timestamp
+                                )
+                                
+                                if triggered_alarms:
+                                    logger.info(f"Triggered {len(triggered_alarms)} alarms for sensor {reading.sensor_id}")
+                                    
+                            except Exception as e:
+                                logger.error(f"Error checking alarms for reading {reading.id}: {e}")
+                        
                     else:
                         logger.warning("传感器数据存储失败")
             else:

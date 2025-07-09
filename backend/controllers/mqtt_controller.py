@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from backend.services.mqtt_service import mqtt_service
+from services.mqtt_service import mqtt_service
 
 mqtt_bp = Blueprint('mqtt', __name__)
 

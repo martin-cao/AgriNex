@@ -1,11 +1,11 @@
 # backend/services/device_service.py
 from typing import List, Optional, Dict, Any
-from backend.models.device import Device
-from backend.models.sensor import Sensor
-from backend.models.reading import Reading
-from backend.extensions import db
-from backend.services.sensor_service import SensorService
-from backend.services.reading_service import ReadingService
+from models.device import Device
+from models.sensor import Sensor
+from models.reading import Reading
+from extensions import db
+from services.sensor_service import SensorService
+from services.reading_service import ReadingService
 import logging
 
 class DeviceService:

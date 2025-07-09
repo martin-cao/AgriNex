@@ -1,7 +1,7 @@
 # backend/services/forecast_service.py
-from backend.models.reading import Reading
-from backend.models.prediction import Prediction
-from backend.extensions import db
+from models.reading import Reading
+from models.prediction import Prediction
+from extensions import db
 from prophet import Prophet
 import pandas as pd
 
@@ -52,7 +52,7 @@ class ForecastService:
         通过设备ID获取历史数据（聚合所有传感器）
         用于支持设备级别的预测API
         """
-        from backend.models.sensor import Sensor
+        from models.sensor import Sensor
         
         # 获取设备下的所有传感器
         sensors = Sensor.query.filter_by(device_id=device_id).all()

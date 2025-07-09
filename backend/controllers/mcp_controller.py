@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
-from backend.models.device import Device
-from backend.models.sensor import Sensor
-from backend.models.reading import Reading
-from backend.extensions import db
+from models.device import Device
+from models.sensor import Sensor
+from models.reading import Reading
+from extensions import db
 
 mcp_bp = Blueprint('mcp', __name__, url_prefix='/api/v1/mcp')
 

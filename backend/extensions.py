@@ -17,7 +17,7 @@ def init_extensions(app):
     jwt.init_app(app)
     
     # 初始化MQTT服务
-    from backend.services.mqtt_service import mqtt_service
+    from services.mqtt_service import mqtt_service
     mqtt_service.init_app(app)
     
     # 启动MQTT连接（在应用上下文中）
@@ -50,7 +50,7 @@ def revoke_token(jti):
 def get_from_cache(key):
     """从Redis获取缓存，如果Redis不可用则返回None"""
     try:
-        from backend.utils.redis_client import redis_client
+        from utils.redis_client import redis_client
         return redis_client.get(key)
     except ImportError:
         return None
@@ -58,7 +58,7 @@ def get_from_cache(key):
 def set_cache(key, value, ttl=300):
     """设置Redis缓存，如果Redis不可用则静默失败"""
     try:
-        from backend.utils.redis_client import redis_client
+        from utils.redis_client import redis_client
         return redis_client.set(key, value, ex=ttl)
     except ImportError:
         return False

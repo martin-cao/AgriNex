@@ -31,12 +31,12 @@ def create_app(config_name='Config'):
     })
     
     # 配置应用
-    from backend.config import Config
+    from config import Config
     app.config.from_object(Config)
     logger.info("Configuration loaded successfully")
     
     # 初始化扩展
-    from backend.extensions import init_extensions
+    from extensions import init_extensions
     init_extensions(app)
     logger.info("Extensions initialized successfully")
     
@@ -55,47 +55,55 @@ def create_app(config_name='Config'):
     # 注册钩子函数
     register_hooks(app)
     
+    # 启动告警监控服务
+    try:
+        from services.alarm_startup import init_alarm_services
+        init_alarm_services(app)
+        logger.info("Alarm monitoring services initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize alarm services: {e}")
+    
     return app
 
 def register_blueprints(app):
     """注册蓝图"""
     # 主要路由
-    from backend.controllers.main_controller import main_bp
+    from controllers.main_controller import main_bp
     app.register_blueprint(main_bp, url_prefix='/api')
     logger.info("Registered main blueprint")
 
     # 设备管理API
-    from backend.controllers.device_controller import device_bp
+    from controllers.device_controller import device_bp
     app.register_blueprint(device_bp, url_prefix='/api/devices')
     logger.info("Registered device blueprint")
 
     # 传感器API
-    from backend.controllers.sensor_controller import sensor_bp
+    from controllers.sensor_controller import sensor_bp
     app.register_blueprint(sensor_bp, url_prefix='/api/sensors')
     logger.info("Registered sensor blueprint")
 
     # 预测API
-    from backend.controllers.forecast_controller import forecast_bp
+    from controllers.forecast_controller import forecast_bp
     app.register_blueprint(forecast_bp, url_prefix='/api/forecasts')
     logger.info("Registered forecast blueprint")
 
     # 告警API
-    from backend.controllers.alarm_controller import alarm_bp
+    from controllers.alarm_controller import alarm_bp
     app.register_blueprint(alarm_bp, url_prefix='/api/alarms')
     logger.info("Registered alarm blueprint")
 
     # 用户认证
-    from backend.controllers.auth_controller import auth_bp
+    from controllers.auth_controller import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     logger.info("Registered auth blueprint")
 
     # MCP服务
-    from backend.controllers.mcp_controller import mcp_bp
+    from controllers.mcp_controller import mcp_bp
     app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
     logger.info("Registered MCP blueprint")
 
     # MQTT服务
-    from backend.controllers.mqtt_controller import mqtt_bp
+    from controllers.mqtt_controller import mqtt_bp
     app.register_blueprint(mqtt_bp, url_prefix='/api/mqtt')
     logger.info("Registered MQTT blueprint")
 
@@ -161,7 +169,7 @@ def register_hooks(app):
 
 def init_database(app):
     """初始化MySQL数据库"""
-    from backend.extensions import db
+    from extensions import db
     from sqlalchemy import inspect
     
     # 测试数据库连接
@@ -191,8 +199,8 @@ def init_database(app):
 
 def init_base_data():
     """初始化基础数据"""
-    from backend.models.user import User
-    from backend.extensions import db
+    from models.user import User
+    from extensions import db
     
     # 检查是否已存在用户
     existing_admin = User.query.filter_by(username="admin").first()

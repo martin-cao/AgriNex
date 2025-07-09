@@ -1,6 +1,6 @@
 # backend/services/lim_service.py
-from backend.models.device import Device
-from backend.extensions import db
+from models.device import Device
+from extensions import db
 
 class LimService:
     @staticmethod

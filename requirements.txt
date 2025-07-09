@@ -9,6 +9,6 @@ numpy
 matplotlib
 celery
 redis
-flask-migrate
+requests
 marshmallow
 plotly

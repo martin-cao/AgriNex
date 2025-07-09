@@ -8,10 +8,10 @@ from datetime import datetime
 import logging
 
 # 导入数据库模型
-from backend.models.device import Device
-from backend.models.sensor import Sensor
-from backend.models.reading import Reading
-from backend.extensions import db
+from models.device import Device
+from models.sensor import Sensor
+from models.reading import Reading
+from extensions import db
 
 # 创建蓝图
 device_bp = Blueprint('device', __name__)

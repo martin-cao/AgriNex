@@ -1,6 +1,6 @@
 
 from datetime import datetime
-from backend.extensions import db
+from extensions import db
 import bcrypt
 
 class User(db.Model):

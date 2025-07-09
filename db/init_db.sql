@@ -140,7 +140,49 @@ CREATE TABLE `alarms` (
   CONSTRAINT `fk_alarms_sensor` FOREIGN KEY (`sensor_id`) REFERENCES `sensors` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='告警表';
 
--- 7. JWT令牌黑名单表 (token_blacklist)
+-- 7. 告警规则表 (alarm_rules)
+DROP TABLE IF EXISTS `alarm_rules`;
+CREATE TABLE `alarm_rules` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '规则ID',
+  `name` varchar(100) NOT NULL COMMENT '规则名称',
+  `description` text COMMENT '规则描述',
+  `sensor_id` int(11) NOT NULL COMMENT '传感器ID',
+  `rule_type` varchar(50) NOT NULL COMMENT '规则类型: threshold/change_rate/pattern',
+  `condition` varchar(20) NOT NULL COMMENT '条件操作符: >, <, >=, <=, ==, !=',
+  `threshold_value` float NOT NULL COMMENT '阈值',
+  `consecutive_count` int(11) DEFAULT 1 COMMENT '连续触发次数',
+  `is_active` tinyint(1) DEFAULT 1 COMMENT '是否启用',
+  `severity` varchar(20) DEFAULT 'medium' COMMENT '严重级别: low/medium/high',
+  `email_enabled` tinyint(1) DEFAULT 0 COMMENT '是否启用邮件通知',
+  `webhook_enabled` tinyint(1) DEFAULT 0 COMMENT '是否启用Webhook通知',
+  `webhook_url` varchar(500) COMMENT 'Webhook URL',
+  `created_by` varchar(100) NOT NULL COMMENT '创建者',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_sensor_active` (`sensor_id`, `is_active`),
+  KEY `idx_rule_type` (`rule_type`),
+  KEY `idx_severity` (`severity`),
+  CONSTRAINT `fk_alarm_rules_sensor` FOREIGN KEY (`sensor_id`) REFERENCES `sensors` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='告警规则表';
+
+-- 8. 告警状态表 (alarm_states)
+DROP TABLE IF EXISTS `alarm_states`;
+CREATE TABLE `alarm_states` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '状态ID',
+  `alarm_rule_id` int(11) NOT NULL COMMENT '告警规则ID',
+  `consecutive_count` int(11) DEFAULT 0 COMMENT '连续触发计数',
+  `last_triggered_at` datetime COMMENT '最后触发时间',
+  `last_value` float COMMENT '最后触发值',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_alarm_rule` (`alarm_rule_id`),
+  KEY `idx_last_triggered` (`last_triggered_at`),
+  CONSTRAINT `fk_alarm_states_rule` FOREIGN KEY (`alarm_rule_id`) REFERENCES `alarm_rules` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='告警状态跟踪表';
+
+-- 9. JWT令牌黑名单表 (token_blacklist)
 DROP TABLE IF EXISTS `token_blacklist`;
 CREATE TABLE `token_blacklist` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -155,7 +197,32 @@ CREATE TABLE `token_blacklist` (
   CONSTRAINT `fk_token_blacklist_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='JWT令牌黑名单';
 
--- 8. 智能建议记录表 (ai_suggestions)
+-- 10. 设备日志表 (device_logs)
+DROP TABLE IF EXISTS `device_logs`;
+CREATE TABLE `device_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+  `device_id` int(11) NOT NULL COMMENT '设备ID',
+  `old_status` varchar(50) COMMENT '旧状态',
+  `new_status` varchar(50) COMMENT '新状态',
+  `changed_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '变更时间',
+  `changed_by` varchar(100) COMMENT '变更人',
+  PRIMARY KEY (`id`),
+  KEY `idx_device_changed` (`device_id`, `changed_at`),
+  CONSTRAINT `fk_device_logs_device` FOREIGN KEY (`device_id`) REFERENCES `devices` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设备状态变更日志';
+
+-- 11. 系统日志表 (system_logs)
+DROP TABLE IF EXISTS `system_logs`;
+CREATE TABLE `system_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+  `log_type` varchar(50) NOT NULL COMMENT '日志类型',
+  `message` text COMMENT '日志消息',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_type_created` (`log_type`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统日志表';
+
+-- 12. 智能建议记录表 (ai_suggestions)
 DROP TABLE IF EXISTS `ai_suggestions`;
 CREATE TABLE `ai_suggestions` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '建议ID',
@@ -172,6 +239,44 @@ CREATE TABLE `ai_suggestions` (
   CONSTRAINT `fk_ai_suggestions_sensor` FOREIGN KEY (`sensor_id`) REFERENCES `sensors` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_ai_suggestions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI智能建议记录表';
+
+-- ====================================
+-- 初始化数据 (Initial Data)
+-- ====================================
+
+-- 插入默认用户
+INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
+('admin', 'scrypt:32768:8:1$2b$10$x8jLlWcNtfFIVzwPCGZyZOSGQNwVpFzQzEbQNvqzOGHuNJi3wKl2u', 'admin'),
+('user1', 'scrypt:32768:8:1$2b$10$x8jLlWcNtfFIVzwPCGZyZOSGQNwVpFzQzEbQNvqzOGHuNJi3wKl2u', 'user');
+
+-- 插入示例设备
+INSERT INTO `devices` (`name`, `location`, `type`, `status`) VALUES
+('温室大棚A', '北京农场', 'greenhouse', 'active'),
+('温室大棚B', '上海农场', 'greenhouse', 'active'),
+('露天菜园', '广州农场', 'open_field', 'active');
+
+-- 插入示例传感器
+INSERT INTO `sensors` (`device_id`, `type`, `name`, `unit`, `status`) VALUES
+(1, 'temperature', '温度传感器A1', '°C', 'active'),
+(1, 'humidity', '湿度传感器A1', '%', 'active'),
+(1, 'light', '光照传感器A1', 'lux', 'active'),
+(2, 'temperature', '温度传感器B1', '°C', 'active'),
+(2, 'humidity', '湿度传感器B1', '%', 'active'),
+(2, 'light', '光照传感器B1', 'lux', 'active');
+
+-- 插入默认告警规则
+INSERT INTO `alarm_rules` (`name`, `description`, `sensor_id`, `rule_type`, `condition`, `threshold_value`, `consecutive_count`, `severity`, `created_by`) VALUES
+('温度过高告警', '温度超过35°C时触发告警', 1, 'threshold', '>', 35.0, 3, 'high', 'system'),
+('温度过低告警', '温度低于5°C时触发告警', 1, 'threshold', '<', 5.0, 3, 'medium', 'system'),
+('湿度过低告警', '湿度低于20%时触发告警', 2, 'threshold', '<', 20.0, 2, 'medium', 'system'),
+('湿度过高告警', '湿度超过90%时触发告警', 2, 'threshold', '>', 90.0, 2, 'low', 'system'),
+('光照不足告警', '光照强度低于500lux时触发告警', 3, 'threshold', '<', 500.0, 5, 'low', 'system'),
+('温室B温度过高', '温室B温度超过30°C时触发告警', 4, 'threshold', '>', 30.0, 2, 'medium', 'system'),
+('温室B湿度异常', '温室B湿度低于30%时触发告警', 5, 'threshold', '<', 30.0, 2, 'medium', 'system');
+
+-- 为每个告警规则创建状态跟踪
+INSERT INTO `alarm_states` (`alarm_rule_id`, `consecutive_count`) VALUES
+(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0);
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -199,32 +304,45 @@ CREATE TRIGGER tr_readings_anomaly_detection
     FOR EACH ROW
 BEGIN
     DECLARE anomaly_detected BOOLEAN DEFAULT FALSE;
+    DECLARE sensor_device_id INT;
+    
+    -- 获取传感器对应的设备ID
+    SELECT device_id INTO sensor_device_id FROM sensors WHERE id = NEW.sensor_id;
     
     -- 温度异常检测 (超出正常范围 0-50度)
-    IF NEW.temperature IS NOT NULL AND (NEW.temperature < 0 OR NEW.temperature > 50) THEN
-        SET anomaly_detected = TRUE;
-        INSERT INTO alarms (device_id, alarm_type, message, severity, created_at)
-        VALUES (NEW.device_id, 'temperature_anomaly', 
-                CONCAT('Temperature out of range: ', NEW.temperature, '°C'), 
-                'medium', NOW());
-    END IF;
-    
-    -- 湿度异常检测 (超出0-100%)
-    IF NEW.humidity IS NOT NULL AND (NEW.humidity < 0 OR NEW.humidity > 100) THEN
-        SET anomaly_detected = TRUE;
-        INSERT INTO alarms (device_id, alarm_type, message, severity, created_at)
-        VALUES (NEW.device_id, 'humidity_anomaly', 
-                CONCAT('Humidity out of range: ', NEW.humidity, '%'), 
-                'medium', NOW());
-    END IF;
-    
-    -- 光照异常检测 (负值)
-    IF NEW.light IS NOT NULL AND NEW.light < 0 THEN
-        SET anomaly_detected = TRUE;
-        INSERT INTO alarms (device_id, alarm_type, message, severity, created_at)
-        VALUES (NEW.device_id, 'light_anomaly', 
-                CONCAT('Invalid light reading: ', NEW.light, ' lux'), 
-                'low', NOW());
+    IF NEW.data_type = 'numeric' AND NEW.numeric_value IS NOT NULL THEN
+        -- 检查温度传感器
+        IF EXISTS (SELECT 1 FROM sensors WHERE id = NEW.sensor_id AND type = 'temperature') THEN
+            IF NEW.numeric_value < 0 OR NEW.numeric_value > 50 THEN
+                SET anomaly_detected = TRUE;
+                INSERT INTO alarms (sensor_id, alarm_type, threshold_value, actual_value, message, severity, created_at)
+                VALUES (NEW.sensor_id, 'temperature_anomaly', 25.0, NEW.numeric_value,
+                        CONCAT('Temperature out of range: ', NEW.numeric_value, '°C'), 
+                        'medium', NOW());
+            END IF;
+        END IF;
+        
+        -- 检查湿度传感器 (超出0-100%)
+        IF EXISTS (SELECT 1 FROM sensors WHERE id = NEW.sensor_id AND type = 'humidity') THEN
+            IF NEW.numeric_value < 0 OR NEW.numeric_value > 100 THEN
+                SET anomaly_detected = TRUE;
+                INSERT INTO alarms (sensor_id, alarm_type, threshold_value, actual_value, message, severity, created_at)
+                VALUES (NEW.sensor_id, 'humidity_anomaly', 50.0, NEW.numeric_value,
+                        CONCAT('Humidity out of range: ', NEW.numeric_value, '%'), 
+                        'medium', NOW());
+            END IF;
+        END IF;
+        
+        -- 检查光照传感器 (负值)
+        IF EXISTS (SELECT 1 FROM sensors WHERE id = NEW.sensor_id AND type = 'light') THEN
+            IF NEW.numeric_value < 0 THEN
+                SET anomaly_detected = TRUE;
+                INSERT INTO alarms (sensor_id, alarm_type, threshold_value, actual_value, message, severity, created_at)
+                VALUES (NEW.sensor_id, 'light_anomaly', 0.0, NEW.numeric_value,
+                        CONCAT('Invalid light reading: ', NEW.numeric_value, ' lux'), 
+                        'low', NOW());
+            END IF;
+        END IF;
     END IF;
 END$$
 DELIMITER ;
@@ -236,14 +354,13 @@ DELIMITER ;
 -- 1. 设备最新状态视图
 CREATE VIEW v_device_latest_status AS
 SELECT 
-    d.device_id,
+    d.id AS device_id,
     d.name AS device_name,
     d.location,
     d.type,
     d.status,
-    r.temperature,
-    r.humidity,
-    r.light,
+    r.numeric_value,
+    r.unit,
     r.timestamp AS last_reading_time,
     CASE 
         WHEN r.timestamp < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'stale'
@@ -252,35 +369,39 @@ SELECT
     END AS data_freshness
 FROM devices d
 LEFT JOIN (
-    SELECT device_id, temperature, humidity, light, timestamp,
-           ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY timestamp DESC) as rn
+    SELECT sensor_id, numeric_value, unit, timestamp,
+           ROW_NUMBER() OVER (PARTITION BY sensor_id ORDER BY timestamp DESC) as rn
     FROM readings
-) r ON d.device_id = r.device_id AND r.rn = 1;
+    WHERE data_type = 'numeric'
+) r ON d.id IN (SELECT device_id FROM sensors WHERE id = r.sensor_id) AND r.rn = 1;
 
 -- 2. 设备每日统计视图
 CREATE VIEW v_device_daily_stats AS
 SELECT 
-    device_id,
-    DATE(timestamp) AS date,
+    s.device_id,
+    DATE(r.timestamp) AS date,
     COUNT(*) AS reading_count,
-    AVG(temperature) AS avg_temp,
-    MIN(temperature) AS min_temp,
-    MAX(temperature) AS max_temp,
-    AVG(humidity) AS avg_humidity,
-    MIN(humidity) AS min_humidity,
-    MAX(humidity) AS max_humidity,
-    AVG(light) AS avg_light,
-    MIN(light) AS min_light,
-    MAX(light) AS max_light
-FROM readings
-WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-GROUP BY device_id, DATE(timestamp);
+    AVG(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS avg_temp,
+    MIN(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS min_temp,
+    MAX(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS max_temp,
+    AVG(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS avg_humidity,
+    MIN(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS min_humidity,
+    MAX(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS max_humidity,
+    AVG(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS avg_light,
+    MIN(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS min_light,
+    MAX(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS max_light
+FROM readings r
+JOIN sensors s ON r.sensor_id = s.id
+WHERE r.timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+  AND r.data_type = 'numeric'
+GROUP BY s.device_id, DATE(r.timestamp);
 
 -- 3. 活跃告警视图
 CREATE VIEW v_active_alarms AS
 SELECT 
     a.id,
-    a.device_id,
+    a.sensor_id,
+    s.name AS sensor_name,
     d.name AS device_name,
     d.location,
     a.alarm_type,
@@ -290,7 +411,8 @@ SELECT
     a.created_at,
     TIMESTAMPDIFF(MINUTE, a.created_at, NOW()) AS minutes_since_created
 FROM alarms a
-JOIN devices d ON a.device_id = d.device_id
+JOIN sensors s ON a.sensor_id = s.id
+JOIN devices d ON s.device_id = d.id
 WHERE a.status = 'active'
 ORDER BY 
     FIELD(a.severity, 'critical', 'high', 'medium', 'low'),
@@ -336,16 +458,17 @@ CREATE PROCEDURE sp_device_health_check()
 BEGIN
     -- 检查长时间无数据的设备
     SELECT 
-        d.device_id,
+        d.id AS device_id,
         d.name,
         d.location,
         d.status,
         MAX(r.timestamp) AS last_reading,
         TIMESTAMPDIFF(HOUR, MAX(r.timestamp), NOW()) AS hours_since_last_reading
     FROM devices d
-    LEFT JOIN readings r ON d.device_id = r.device_id
+    LEFT JOIN sensors s ON d.id = s.device_id
+    LEFT JOIN readings r ON s.id = r.sensor_id
     WHERE d.status = 'active'
-    GROUP BY d.device_id, d.name, d.location, d.status
+    GROUP BY d.id, d.name, d.location, d.status
     HAVING MAX(r.timestamp) < DATE_SUB(NOW(), INTERVAL 2 HOUR) 
         OR MAX(r.timestamp) IS NULL;
 END$$
@@ -359,31 +482,35 @@ BEGIN
     SET start_date = DATE_SUB(NOW(), INTERVAL days_back DAY);
     
     -- 基本设备信息
-    SELECT * FROM devices WHERE device_id = device_id_param;
+    SELECT * FROM devices WHERE id = device_id_param;
     
     -- 时间段内的统计
     SELECT 
         COUNT(*) AS total_readings,
-        AVG(temperature) AS avg_temp,
-        MIN(temperature) AS min_temp,
-        MAX(temperature) AS max_temp,
-        AVG(humidity) AS avg_humidity,
-        MIN(humidity) AS min_humidity,
-        MAX(humidity) AS max_humidity,
-        AVG(light) AS avg_light,
-        MIN(light) AS min_light,
-        MAX(light) AS max_light
-    FROM readings 
-    WHERE device_id = device_id_param AND timestamp >= start_date;
+        AVG(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS avg_temp,
+        MIN(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS min_temp,
+        MAX(CASE WHEN s.type = 'temperature' THEN r.numeric_value END) AS max_temp,
+        AVG(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS avg_humidity,
+        MIN(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS min_humidity,
+        MAX(CASE WHEN s.type = 'humidity' THEN r.numeric_value END) AS max_humidity,
+        AVG(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS avg_light,
+        MIN(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS min_light,
+        MAX(CASE WHEN s.type = 'light' THEN r.numeric_value END) AS max_light
+    FROM readings r
+    JOIN sensors s ON r.sensor_id = s.id
+    WHERE s.device_id = device_id_param 
+      AND r.timestamp >= start_date
+      AND r.data_type = 'numeric';
     
     -- 告警统计
     SELECT 
-        alarm_type,
+        a.alarm_type,
         COUNT(*) AS alarm_count,
-        MAX(created_at) AS latest_alarm
-    FROM alarms 
-    WHERE device_id = device_id_param AND created_at >= start_date
-    GROUP BY alarm_type;
+        MAX(a.created_at) AS latest_alarm
+    FROM alarms a
+    JOIN sensors s ON a.sensor_id = s.id
+    WHERE s.device_id = device_id_param AND a.created_at >= start_date
+    GROUP BY a.alarm_type;
 END$$
 DELIMITER ;
 

@@ -1,8 +1,8 @@
 # backend/services/sensor_service.py
 from typing import List, Optional, Dict, Any
-from backend.models.sensor import Sensor
-from backend.models.reading import Reading
-from backend.extensions import db
+from models.sensor import Sensor
+from models.reading import Reading
+from extensions import db
 import logging
 
 class SensorService:

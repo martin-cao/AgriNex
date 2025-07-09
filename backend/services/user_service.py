@@ -1,6 +1,6 @@
 # backend/services/user_service.py
-from backend.models.user import User
-from backend.extensions import db
+from models.user import User
+from extensions import db
 
 class UserService:
     @staticmethod

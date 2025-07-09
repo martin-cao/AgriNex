@@ -13,9 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 设置 Flask 环境变量
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=development
+ENV PYTHONPATH=/app
 
 # 开放端口
 EXPOSE 8000
 
 # 启动 Flask 应用
-CMD ["flask", "run", "--host=0.0.0.0", "--port=8000"]
+CMD ["python", "app.py"]

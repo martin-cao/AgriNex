@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.models.sensor import Sensor
-from backend.models.reading import Reading
-from backend.services.sensor_service import SensorService
-from backend.extensions import db
+from models.sensor import Sensor
+from models.reading import Reading
+from services.sensor_service import SensorService
+from extensions import db
 
 sensor_bp = Blueprint('sensor', __name__, url_prefix='/api/sensors')
 

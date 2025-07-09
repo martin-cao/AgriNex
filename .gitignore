@@ -11,6 +11,7 @@
 # Logs
 *.log
 logs/
+end_to_end_test.log
 
 # Database
 *.db

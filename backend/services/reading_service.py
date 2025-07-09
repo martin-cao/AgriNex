@@ -1,10 +1,10 @@
 # backend/services/reading_service.py
 from typing import List, Optional, Dict, Any, BinaryIO
 from datetime import datetime, timedelta
-from backend.models.reading import Reading
-from backend.models.sensor import Sensor
-from backend.extensions import db
-from backend.services.storage_service import storage_service
+from models.reading import Reading
+from models.sensor import Sensor
+from extensions import db
+from services.storage_service import storage_service
 import logging
 import json
 

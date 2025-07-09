@@ -373,5 +373,53 @@ class StorageService:
             logging.error(f"Failed to list objects in {bucket_name}: {e}")
             return []
 
+    def store_file(self, 
+                   filename: str, 
+                   file_data: bytes, 
+                   content_type: str = 'application/octet-stream',
+                   metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        """
+        存储文件数据（简化版接口）
+        """
+        try:
+            import io
+            
+            # 创建BytesIO对象
+            file_obj = io.BytesIO(file_data)
+            
+            # 解析文件名获取信息
+            parts = filename.split('_')
+            if len(parts) >= 3:
+                data_type = parts[0]
+                sensor_id = parts[1]
+                device_id = sensor_id  # 简化处理
+            else:
+                data_type = 'unknown'
+                sensor_id = '1'
+                device_id = '1'
+            
+            # 获取文件扩展名
+            file_format = filename.split('.')[-1] if '.' in filename else 'bin'
+            
+            # 使用默认bucket名称
+            bucket_name = 'agrinex-data'
+            
+            # 调用完整的上传方法
+            result = self.upload_file(
+                file_data=file_obj,
+                bucket_name=bucket_name,
+                data_type=data_type,
+                device_id=device_id,
+                sensor_id=sensor_id,
+                file_format=file_format,
+                metadata=metadata
+            )
+            
+            return result if result.get('success') else None
+            
+        except Exception as e:
+            logging.error(f"Failed to store file {filename}: {e}")
+            return None
+
 # 创建全局存储服务实例
 storage_service = StorageService()

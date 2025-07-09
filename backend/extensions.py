@@ -1,5 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 初始化扩展
 db = SQLAlchemy()
@@ -12,6 +15,28 @@ def init_extensions(app):
     """初始化所有Flask扩展"""
     db.init_app(app)
     jwt.init_app(app)
+    
+    # 初始化MQTT服务
+    from backend.services.mqtt_service import mqtt_service
+    mqtt_service.init_app(app)
+    
+    # 启动MQTT连接（在应用上下文中）
+    import threading
+    import time
+    
+    def start_mqtt_with_context():
+        """在应用上下文中启动MQTT服务"""
+        time.sleep(1)  # 等待其他服务初始化完成
+        with app.app_context():
+            success = mqtt_service.connect()
+            if success:
+                logger.info("MQTT服务初始化成功")
+            else:
+                logger.error("MQTT服务初始化失败")
+    
+    mqtt_thread = threading.Thread(target=start_mqtt_with_context)
+    mqtt_thread.daemon = True
+    mqtt_thread.start()
 
 @jwt.token_in_blocklist_loader
 def check_if_token_revoked(jwt_header, jwt_payload):

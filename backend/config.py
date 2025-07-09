@@ -6,7 +6,7 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     # 数据库配置（仅支持MySQL）
-    DATABASE_URL = os.getenv('DATABASE_URL')
+    DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://agrinex:dev-secret-key@localhost:3306/agrinex')
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable is required for MySQL connection")
     SQLALCHEMY_DATABASE_URI = DATABASE_URL

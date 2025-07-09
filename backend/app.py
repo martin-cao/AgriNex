@@ -94,6 +94,11 @@ def register_blueprints(app):
     app.register_blueprint(mcp_bp, url_prefix='/api/mcp')
     logger.info("Registered MCP blueprint")
 
+    # MQTT服务
+    from backend.controllers.mqtt_controller import mqtt_bp
+    app.register_blueprint(mqtt_bp, url_prefix='/api/mqtt')
+    logger.info("Registered MQTT blueprint")
+
 def register_error_handlers(app):
     """注册错误处理器"""
     

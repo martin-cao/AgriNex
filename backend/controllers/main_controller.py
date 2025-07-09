@@ -27,7 +27,7 @@ def index():
         }
     })
 
-@main_bp.route('/api')
+@main_bp.route('/')
 def api_info():
     """API信息"""
     return jsonify({
@@ -77,14 +77,33 @@ def api_docs():
         }
     })
 
-@main_bp.route('/api/health')
+@main_bp.route('/health')
 def health_check():
-    """健康检查"""
-    return jsonify({
-        'status': 'ok',
-        'message': 'AgriNex Backend is running',
-        'timestamp': datetime.utcnow().isoformat()
-    })
+    """健康检查端点"""
+    try:
+        # 检查数据库连接
+        from backend.extensions import db
+        with db.engine.connect() as conn:
+            conn.execute(db.text('SELECT 1'))
+        
+        # 检查MQTT服务状态
+        from backend.services.mqtt_service import mqtt_service
+        mqtt_status = mqtt_service.get_connection_status()
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'services': {
+                'database': 'connected',
+                'mqtt': mqtt_status
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }), 503
 
 @main_bp.route('/api/status')
 def system_status():
@@ -98,7 +117,8 @@ def system_status():
     # 检查数据库连接
     try:
         from backend.extensions import db
-        db.engine.execute('SELECT 1')
+        with db.engine.connect() as conn:
+            conn.execute(db.text('SELECT 1'))
         status['components']['database'] = 'connected'
     except Exception as e:
         status['components']['database'] = f'error: {str(e)}'
@@ -125,5 +145,16 @@ def system_status():
             status['components']['local_storage'] = 'not_accessible'
     except Exception as e:
         status['components']['local_storage'] = f'error: {str(e)}'
+    
+    # 检查MQTT连接
+    try:
+        from backend.services.mqtt_service import mqtt_service
+        mqtt_status = mqtt_service.get_connection_status()
+        if mqtt_status.get('connected', False):
+            status['components']['mqtt'] = 'connected'
+        else:
+            status['components']['mqtt'] = 'disconnected'
+    except Exception as e:
+        status['components']['mqtt'] = f'error: {str(e)}'
     
     return jsonify(status)

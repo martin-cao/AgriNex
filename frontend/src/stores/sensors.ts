@@ -97,17 +97,27 @@ export const useSensorsStore = defineStore('sensors', () => {
 
   const fetchSensorReadings = async (
     sensorId: number,
-    params?: { start_time?: string; end_time?: string; limit?: number }
+    params?: { start_time?: string; end_time?: string; per_page?: number; page?: number }
   ) => {
     isLoading.value = true;
     try {
       const response = await sensorsApi.getSensorReadings(sensorId, params);
-      if (response.success && response.data) {
-        sensorReadings.value = response.data;
-        return response.data;
+      if (response.success) {
+        // 处理分页响应
+        if (response.data) {
+          sensorReadings.value = Array.isArray(response.data) ? response.data : [];
+          return {
+            data: sensorReadings.value,
+            pagination: response.pagination
+          };
+        }
       }
+      return { data: [], pagination: null };
     } catch (error) {
       console.error('获取传感器读数失败:', error);
+      // 如果API返回404或无数据，返回空数组而不是错误
+      sensorReadings.value = [];
+      return { data: [], pagination: null };
     } finally {
       isLoading.value = false;
     }

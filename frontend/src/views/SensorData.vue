@@ -480,13 +480,17 @@ const loadSensorReadings = async (sensorId: number) => {
   chartLoading.value = true;
   try {
     const params = {
-      limit: pageSize.value,
+      per_page: pageSize.value,
+      page: currentPage.value,
       // 根据时间范围设置开始时间
       start_time: getStartTime(),
       end_time: new Date().toISOString()
     };
     
-    await sensorsStore.fetchSensorReadings(sensorId, params);
+    const result = await sensorsStore.fetchSensorReadings(sensorId, params);
+    if (result.pagination) {
+      totalCount.value = result.pagination.total;
+    }
   } catch (error) {
     console.error('加载传感器读数失败:', error);
   } finally {

@@ -108,9 +108,9 @@
         >
           <div class="media-preview">
             <img
-              v-if="file.type.startsWith('image')"
-              :src="file.url"
-              :alt="file.name"
+              v-if="file.file_type === 'image'"
+              :src="file.thumbnail_url || file.url"
+              :alt="file.original_filename"
               class="media-thumbnail"
             />
             <div v-else class="video-preview">
@@ -121,9 +121,9 @@
             </div>
           </div>
           <div class="media-info">
-            <div class="media-name" :title="file.name">{{ file.name }}</div>
+            <div class="media-name" :title="file.original_filename">{{ file.original_filename }}</div>
             <div class="media-meta">
-              <span class="file-size">{{ formatFileSize(file.size) }}</span>
+              <span class="file-size">{{ formatFileSize(file.file_size) }}</span>
               <span class="upload-date">{{ formatDate(file.created_at) }}</span>
             </div>
           </div>
@@ -144,9 +144,9 @@
           <template #default="scope">
             <div class="table-preview" @click="openPreview(scope.row)">
               <img
-                v-if="scope.row.type.startsWith('image')"
-                :src="scope.row.url"
-                :alt="scope.row.name"
+                v-if="scope.row.file_type === 'image'"
+                :src="scope.row.thumbnail_url || scope.row.url"
+                :alt="scope.row.original_filename"
                 class="table-thumbnail"
               />
               <div v-else class="video-icon">
@@ -155,11 +155,11 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="文件名" />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="size" label="大小" width="100">
+        <el-table-column prop="original_filename" label="文件名" />
+        <el-table-column prop="mime_type" label="类型" width="120" />
+        <el-table-column prop="file_size" label="大小" width="100">
           <template #default="scope">
-            {{ formatFileSize(scope.row.size) }}
+            {{ formatFileSize(scope.row.file_size) }}
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="上传时间" width="180">
@@ -186,28 +186,28 @@
     <!-- 预览对话框 -->
     <el-dialog
       v-model="previewVisible"
-      :title="currentFile?.name"
+      :title="currentFile?.original_filename"
       width="80%"
       @close="closePreview"
     >
       <div class="preview-content">
         <img
-          v-if="currentFile && currentFile.type.startsWith('image')"
+          v-if="currentFile && currentFile.file_type === 'image'"
           :src="currentFile.url"
-          :alt="currentFile.name"
+          :alt="currentFile.original_filename"
           class="preview-image"
         />
         <video
-          v-else-if="currentFile && currentFile.type.startsWith('video')"
+          v-else-if="currentFile && currentFile.file_type === 'video'"
           :src="currentFile.url"
           class="preview-video"
           controls
         />
       </div>
       <div class="preview-info">
-        <p><strong>文件名:</strong> {{ currentFile?.name }}</p>
-        <p><strong>类型:</strong> {{ currentFile?.type }}</p>
-        <p><strong>大小:</strong> {{ formatFileSize(currentFile?.size || 0) }}</p>
+        <p><strong>文件名:</strong> {{ currentFile?.original_filename }}</p>
+        <p><strong>类型:</strong> {{ currentFile?.mime_type }}</p>
+        <p><strong>大小:</strong> {{ formatFileSize(currentFile?.file_size || 0) }}</p>
         <p><strong>上传时间:</strong> {{ formatDate(currentFile?.created_at || '') }}</p>
       </div>
     </el-dialog>
@@ -227,16 +227,9 @@ import {
   Delete
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { mediaApi } from '@/api'
 import { formatDate, formatFileSize } from '@/utils'
-
-interface MediaFile {
-  id: number
-  name: string
-  type: string
-  url: string
-  size: number
-  created_at: string
-}
+import type { MediaFile } from '@/api/media'
 
 const authStore = useAuthStore()
 
@@ -253,8 +246,8 @@ const currentFile = ref<MediaFile | null>(null)
 
 // 上传配置
 const uploadUrl = computed(() => {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.VITE_APP_ENV === 'production' ? '' : 'http://localhost:8000')
-  return `${baseUrl}/api/media/upload`
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${baseUrl}/media/upload/`
 })
 const uploadHeaders = computed(() => ({
   'Authorization': `Bearer ${authStore.token}`
@@ -264,51 +257,92 @@ const uploadHeaders = computed(() => ({
 const fetchMedia = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    const mockData: MediaFile[] = [
-      {
-        id: 1,
-        name: '农田监控-2024-01-01.jpg',
-        type: 'image/jpeg',
-        url: 'https://picsum.photos/800/600?random=1',
-        size: 1024000,
-        created_at: '2024-01-01T10:00:00Z'
-      },
-      {
-        id: 2,
-        name: '灌溉系统视频.mp4',
-        type: 'video/mp4',
-        url: 'https://www.w3schools.com/html/mov_bbb.mp4',
-        size: 5048000,
-        created_at: '2024-01-02T14:30:00Z'
-      },
-      {
-        id: 3,
-        name: '作物生长记录.jpg',
-        type: 'image/jpeg',
-        url: 'https://picsum.photos/800/600?random=2',
-        size: 856000,
-        created_at: '2024-01-03T09:15:00Z'
-      }
-    ]
+    const params: any = {}
     
-    // 应用筛选
-    let filteredData = mockData
     if (filterType.value) {
-      filteredData = filteredData.filter(file => file.type.startsWith(filterType.value))
-    }
-    if (searchKeyword.value) {
-      filteredData = filteredData.filter(file => 
-        file.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-      )
+      params.file_type = filterType.value
     }
     
-    mediaFiles.value = filteredData
-  } catch (error) {
-    ElMessage.error('获取媒体文件失败')
+    if (dateRange.value) {
+      params.start_date = dateRange.value[0].toISOString().split('T')[0]
+      params.end_date = dateRange.value[1].toISOString().split('T')[0]
+    }
+    
+    const response = await mediaApi.getMediaFiles(params)
+    
+    if (response.success) {
+      let filteredData = response.data || []
+      
+      // 应用搜索关键词筛选
+      if (searchKeyword.value) {
+        filteredData = filteredData.filter(file => 
+          file.original_filename.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
+          file.filename.toLowerCase().includes(searchKeyword.value.toLowerCase())
+        )
+      }
+      
+      mediaFiles.value = filteredData
+    } else {
+      ElMessage.error('获取媒体文件失败')
+    }
+  } catch (error: any) {
+    console.error('获取媒体文件失败:', error)
+    // 如果API不存在，显示模拟数据
+    if (error.response?.status === 404) {
+      ElMessage.warning('媒体API暂不可用，显示模拟数据')
+      mediaFiles.value = getMockData()
+    } else {
+      ElMessage.error('获取媒体文件失败')
+    }
   } finally {
     loading.value = false
   }
+}
+
+// 模拟数据
+const getMockData = (): MediaFile[] => {
+  return [
+    {
+      id: 1,
+      filename: 'farm_monitoring_20240101.jpg',
+      original_filename: '农田监控-2024-01-01.jpg',
+      file_type: 'image',
+      file_size: 1024000,
+      mime_type: 'image/jpeg',
+      url: 'https://picsum.photos/800/600?random=1',
+      thumbnail_url: 'https://picsum.photos/200/200?random=1',
+      device_id: 1,
+      sensor_id: 1,
+      created_at: '2024-01-01T10:00:00Z',
+      updated_at: '2024-01-01T10:00:00Z'
+    },
+    {
+      id: 2,
+      filename: 'irrigation_system_20240102.mp4',
+      original_filename: '灌溉系统视频.mp4',
+      file_type: 'video',
+      file_size: 5048000,
+      mime_type: 'video/mp4',
+      url: 'https://www.w3schools.com/html/mov_bbb.mp4',
+      device_id: 2,
+      created_at: '2024-01-02T14:30:00Z',
+      updated_at: '2024-01-02T14:30:00Z'
+    },
+    {
+      id: 3,
+      filename: 'crop_growth_20240103.jpg',
+      original_filename: '作物生长记录.jpg',
+      file_type: 'image',
+      file_size: 856000,
+      mime_type: 'image/jpeg',
+      url: 'https://picsum.photos/800/600?random=2',
+      thumbnail_url: 'https://picsum.photos/200/200?random=2',
+      device_id: 3,
+      sensor_id: 3,
+      created_at: '2024-01-03T09:15:00Z',
+      updated_at: '2024-01-03T09:15:00Z'
+    }
+  ]
 }
 
 // 文件上传前验证
@@ -329,12 +363,17 @@ const beforeUpload = (file: File) => {
 
 // 上传成功处理
 const handleUploadSuccess = (response: any, file: any) => {
-  ElMessage.success('文件上传成功')
-  fetchMedia()
+  if (response.success) {
+    ElMessage.success('文件上传成功')
+    fetchMedia()
+  } else {
+    ElMessage.error('文件上传失败: ' + (response.message || '未知错误'))
+  }
 }
 
 // 上传失败处理
 const handleUploadError = (error: any) => {
+  console.error('上传失败:', error)
   ElMessage.error('文件上传失败')
 }
 
@@ -359,7 +398,7 @@ const closePreview = () => {
 const downloadFile = (file: MediaFile) => {
   const link = document.createElement('a')
   link.href = file.url
-  link.download = file.name
+  link.download = file.original_filename
   link.click()
   ElMessage.success('文件下载已开始')
 }
@@ -368,7 +407,7 @@ const downloadFile = (file: MediaFile) => {
 const deleteFile = async (file: MediaFile) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除文件 "${file.name}" 吗？`,
+      `确定要删除文件 "${file.original_filename}" 吗？`,
       '确认删除',
       {
         confirmButtonText: '确定',
@@ -377,9 +416,14 @@ const deleteFile = async (file: MediaFile) => {
       }
     )
     
-    // 模拟删除API调用
-    ElMessage.success('文件删除成功')
-    fetchMedia()
+    try {
+      await mediaApi.deleteMediaFile(file.id)
+      ElMessage.success('文件删除成功')
+      fetchMedia()
+    } catch (error) {
+      console.error('删除文件失败:', error)
+      ElMessage.error('删除文件失败')
+    }
   } catch (error) {
     // 取消删除
   }

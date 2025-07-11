@@ -96,6 +96,14 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   error?: string;
+  pagination?: {
+    page: number;
+    per_page: number;
+    pages: number;
+    total: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
 }
 
 export interface ChartData {

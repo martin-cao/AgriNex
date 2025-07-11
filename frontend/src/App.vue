@@ -122,6 +122,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
+import { systemApi } from '@/api'
 import {
   Platform,
   Monitor,
@@ -162,14 +163,14 @@ const systemStatus = ref({
 // 检查系统健康状态
 const checkSystemHealth = async () => {
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.VITE_APP_ENV === 'production' ? '' : 'http://localhost:8000')
-    const response = await fetch(`${baseUrl}/api/health`)
-    if (response.ok) {
+    const response = await systemApi.healthCheck()
+    if (response.success) {
       systemStatus.value = { text: '系统正常', type: 'success' }
     } else {
       systemStatus.value = { text: '系统异常', type: 'warning' }
     }
   } catch (error) {
+    console.error('Health check failed:', error)
     systemStatus.value = { text: '连接失败', type: 'danger' }
   }
 }

@@ -1,31 +1,38 @@
-# Sensor Client Dockerfile
-FROM python:3.9-slim
+# AgriNex Sensor Client Dockerfile v2.0
+FROM python:3.11-slim
 
-# 安装系统依赖，包括 OpenGL 和 OpenCV 所需的库
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libgtk-3-0 \
+    gcc \
+    libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 复制requirements文件
+# Copy requirements first for better caching
 COPY requirements.txt .
-
-# 安装依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制源代码
-COPY . .
+# Copy application code
+COPY src/ src/
+COPY config/ config/
+COPY main.py .
+COPY scripts/ scripts/
 
-# 设置环境变量
+# Create logs directory
+RUN mkdir -p logs
+
+# Set environment variables
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
-# 启动传感器模拟器
-CMD ["python", "enhanced_mqtt_client.py"]
+# Expose any necessary ports (if needed for monitoring)
+# EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python scripts/diagnose.py || exit 1
+
+# Run the application with Docker configuration
+CMD ["python", "main.py", "--config", "config/docker.json"]

@@ -1,0 +1,34 @@
+{
+  "client_id": "agrinex_sensor_001",
+  "debug": false,
+  "mqtt": {
+    "host": "localhost",
+    "port": 1883,
+    "username": null,
+    "password": null,
+    "keepalive": 60,
+    "qos": 1,
+    "retain": false
+  },
+  "serial": {
+    "ports": null,
+    "baudrate": 9600,
+    "timeout": 1.0,
+    "auto_detect": true,
+    "simulation_mode": true
+  },
+  "sensor": {
+    "collection_interval": 30.0,
+    "data_format": "json",
+    "include_metadata": true,
+    "quality_checks": true,
+    "mock_data_generation": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_path": "logs/sensor_client.log",
+    "max_file_size": 10485760,
+    "backup_count": 5
+  }
+}

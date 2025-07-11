@@ -25,17 +25,7 @@ def get_devices():
     """获取所有设备"""
     try:
         devices = Device.query.all()
-        device_list = []
-        for device in devices:
-            device_list.append({
-                'id': device.id,
-                'name': device.name,
-                'device_type': device.device_type,
-                'location': device.location,
-                'status': device.status,
-                'created_at': device.created_at.isoformat() if device.created_at else None,
-                'updated_at': device.updated_at.isoformat() if device.updated_at else None
-            })
+        device_list = [device.to_dict() for device in devices]  # 使用模型的to_dict方法
         
         return jsonify({
             'success': True,
@@ -60,19 +50,9 @@ def get_device(device_id: int):
                 'error': 'Device not found'
             }), 404
         
-        device_data = {
-            'id': device.id,
-            'name': device.name,
-            'device_type': device.device_type,
-            'location': device.location,
-            'status': device.status,
-            'created_at': device.created_at.isoformat() if device.created_at else None,
-            'updated_at': device.updated_at.isoformat() if device.updated_at else None
-        }
-        
         return jsonify({
             'success': True,
-            'data': device_data
+            'data': device.to_dict()  # 使用模型的to_dict方法
         })
     except Exception as e:
         logger.error("Error getting device %d: %s", device_id, str(e))
@@ -95,18 +75,7 @@ def get_device_sensors(device_id: int):
             }), 404
         
         sensors = Sensor.query.filter_by(device_id=device_id).all()
-        sensor_list = []
-        for sensor in sensors:
-            sensor_list.append({
-                'id': sensor.id,
-                'device_id': sensor.device_id,
-                'name': sensor.name,
-                'sensor_type': sensor.sensor_type,
-                'data_type': sensor.data_type,
-                'unit': sensor.unit,
-                'status': sensor.status,
-                'created_at': sensor.created_at.isoformat() if sensor.created_at else None
-            })
+        sensor_list = [sensor.to_dict() for sensor in sensors]  # 使用模型的to_dict方法
         
         return jsonify({
             'success': True,

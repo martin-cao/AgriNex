@@ -21,7 +21,7 @@ class Sensor(db.Model):
         return {
             'id': self.id,
             'device_id': self.device_id,
-            'type': self.type,
+            'sensor_type': self.type,  # 修复：前端期望的字段名是sensor_type
             'name': self.name,
             'unit': self.unit,
             'status': self.status,

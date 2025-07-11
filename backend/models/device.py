@@ -21,7 +21,7 @@ class Device(db.Model):
             'id': self.id,
             'name': self.name,
             'location': self.location,
-            'type': self.type,
+            'device_type': self.type,  # 修复：前端期望的字段名是device_type
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

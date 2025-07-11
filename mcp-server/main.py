@@ -33,6 +33,7 @@ def root():
     return {"message": "AgriNex MCP Server is running!"}
 
 @app.get("/health")
+@app.head("/health")
 def health():
     return {"status": "healthy"}
 
@@ -92,4 +93,5 @@ async def execute_intent(intent: str, params: dict) -> str:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.getenv("PORT", "3000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

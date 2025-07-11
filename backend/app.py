@@ -24,7 +24,7 @@ def create_app(config_name='Config'):
     # 配置CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000", "http://localhost:8080"],
+            "origins": ["http://localhost:80", "http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:8080"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
@@ -96,6 +96,11 @@ def register_blueprints(app):
     from controllers.auth_controller import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     logger.info("Registered auth blueprint")
+
+    # LLM智能助手
+    from controllers.llm_controller import llm_bp
+    app.register_blueprint(llm_bp, url_prefix='/api/llm')
+    logger.info("Registered LLM blueprint")
 
     # MCP服务
     from controllers.mcp_controller import mcp_bp
@@ -169,6 +174,13 @@ def register_hooks(app):
 
 def init_database(app):
     """初始化MySQL数据库"""
+    import os
+    
+    # 检查是否允许无数据库模式
+    if os.getenv('ALLOW_NO_DB', '').lower() == 'true':
+        logger.info("Running in no-database mode, skipping database initialization")
+        return
+    
     from extensions import db
     from sqlalchemy import inspect
     

@@ -817,8 +817,8 @@ def main():
     
     parser = argparse.ArgumentParser(description='增强的MQTT传感器客户端')
     parser.add_argument('--client-id', default=f'enhanced_sensor_{uuid.uuid4().hex[:8]}', help='客户端ID')
-    parser.add_argument('--mqtt-host', default='localhost', help='MQTT服务器地址')
-    parser.add_argument('--mqtt-port', type=int, default=1883, help='MQTT服务器端口')
+    parser.add_argument('--mqtt-host', default=os.getenv('MQTT_HOST', 'localhost'), help='MQTT服务器地址')
+    parser.add_argument('--mqtt-port', type=int, default=int(os.getenv('MQTT_PORT', '1883')), help='MQTT服务器端口')
     parser.add_argument('--scan-interval', type=float, default=30.0, help='端口扫描间隔')
     parser.add_argument('--image-interval', type=float, default=60.0, help='图像采集间隔')
     parser.add_argument('--camera', action='store_true', help='启用摄像头功能')

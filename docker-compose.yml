@@ -1,8 +1,6 @@
-# docker-compose.v2.yml
+# docker-compose.yml
 # AgriNex V2.0 完整部署配置
 # 支持三层架构、MinIO对象存储、MySQL数据库
-
-version: '3.8'
 
 services:
   # MySQL 数据库
@@ -128,8 +126,8 @@ services:
       # 其他配置
       PORT: 8000
       PYTHONPATH: /app
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - backend_storage:/app/storage
       - backend_logs:/app/logs
@@ -145,30 +143,32 @@ services:
     networks:
       - agrinex-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
   # AgriNex 前端
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     container_name: agrinex-frontend
     restart: always
     environment:
-      VUE_APP_API_BASE_URL: http://localhost:8000/api/v2
-      VUE_APP_BACKEND_URL: http://backend:8000
-    ports:
-      - "80:80"
-      - "443:443"
+      VITE_API_BASE_URL: "/api"
+      VITE_WS_BASE_URL: ""
+      VITE_APP_TITLE: AgriNex - 农业物联网平台
+      VITE_APP_ENV: production
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - agrinex-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -192,7 +192,7 @@ services:
     networks:
       - agrinex-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -216,25 +216,29 @@ services:
     networks:
       - agrinex-network
 
-  # Nginx 负载均衡和反向代理
-  nginx:
+  # Nginx 反向代理 - 统一入口，解决CORS问题
+  nginx-proxy:
     image: nginx:alpine
-    container_name: agrinex-nginx
+    container_name: agrinex-nginx-proxy
     restart: always
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - frontend
       - backend
     networks:
       - agrinex-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+
 
 volumes:
   mysql_data:

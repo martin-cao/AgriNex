@@ -11,6 +11,7 @@ info:
     - 告警管理：实时异常数据监控和告警
     - 预测分析：基于历史数据的预测功能
     - MCP服务：模型上下文协议集成
+    - MQTT消息服务：设备通信和数据传输
     
     API架构：
     - 主服务：平台信息、健康检查、API文档
@@ -20,7 +21,8 @@ info:
     - 预测服务：手动触发预测、获取预测结果
     - 用户认证：注册、登录、token刷新、用户信息
     - MCP服务：模型上下文协议相关接口
-  version: 1.0.0
+    - MQTT服务：设备通信和配置管理
+  version: 2.0.0
   contact:
     name: AgriNex Development Team
     email: dev@agrinex.com
@@ -29,7 +31,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:5000
+  - url: http://localhost:8000
     description: Development server
   - url: https://api.agrinex.com
     description: Production server
@@ -49,6 +51,8 @@ tags:
     description: 数据预测和分析
   - name: MCP
     description: 模型上下文协议服务
+  - name: MQTT
+    description: MQTT消息服务
 
 security:
   - bearerAuth: []
@@ -109,7 +113,7 @@ paths:
               schema:
                 type: object
 
-  /api/health:
+  /health:
     get:
       tags: [Main]
       summary: 健康检查
@@ -125,18 +129,33 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: "ok"
-                  message:
-                    type: string
+                    example: "healthy"
                   timestamp:
                     type: string
                     format: date-time
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                      mqtt:
+                        type: string
+                      alarm_monitor:
+                        type: string
+                  version:
+                    type: string
+        '503':
+          description: 服务不健康
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/status:
     get:
       tags: [Main]
       summary: 系统状态
-      description: 获取系统各组件状态（数据库、MinIO、本地存储）
+      description: 获取系统各组件状态（数据库、MinIO、本地存储、MQTT）
       security: []
       responses:
         '200':
@@ -190,6 +209,10 @@ paths:
                     $ref: '#/components/schemas/User'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/auth/register:
     post:
@@ -207,7 +230,6 @@ paths:
               properties:
                 username:
                   type: string
-                  minLength: 3
                 password:
                   type: string
                   minLength: 6
@@ -218,28 +240,38 @@ paths:
       responses:
         '201':
           description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
         '400':
-          description: 参数错误
+          description: 请求数据无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 用户名已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/auth/refresh:
     post:
       tags: [Authentication]
-      summary: 刷新Token
-      description: 使用refresh_token获取新的access_token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refresh_token:
-                  type: string
+      summary: 刷新访问令牌
+      description: 使用refresh token刷新访问令牌
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: Token刷新成功
+          description: 刷新成功
           content:
             application/json:
               schema:
@@ -247,51 +279,59 @@ paths:
                 properties:
                   access_token:
                     type: string
+        '401':
+          description: refresh token无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/auth/logout:
     post:
       tags: [Authentication]
       summary: 用户登出
-      description: 撤销当前token
+      description: 登出用户并将token加入黑名单
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
   /api/auth/profile:
     get:
       tags: [Authentication]
       summary: 获取用户信息
-      description: 获取当前登录用户的个人信息
+      description: 获取当前用户的个人信息
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: 用户信息
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  claims:
+                    type: object
 
   # Device endpoints
   /api/devices:
     get:
       tags: [Devices]
       summary: 获取设备列表
-      description: 获取所有设备列表，支持分页和筛选
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [active, inactive, error]
+      description: 获取所有设备的列表
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: 设备列表
@@ -306,48 +346,16 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Device'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-
-    post:
-      tags: [Devices]
-      summary: 创建设备
-      description: 创建新的IoT设备
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
-                location:
-                  type: string
-                type:
-                  type: string
-                status:
-                  type: string
-                  default: active
-      responses:
-        '201':
-          description: 设备创建成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: '#/components/schemas/Device'
+                  total:
+                    type: integer
 
   /api/devices/{device_id}:
     get:
       tags: [Devices]
-      summary: 获取设备详情
-      description: 获取指定设备的详细信息
+      summary: 获取特定设备
+      description: 根据设备ID获取设备详细信息
+      security:
+        - bearerAuth: []
       parameters:
         - name: device_id
           in: path
@@ -356,7 +364,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: 设备详情
+          description: 设备详细信息
           content:
             application/json:
               schema:
@@ -366,74 +374,20 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/Device'
-
-    put:
-      tags: [Devices]
-      summary: 更新设备
-      description: 更新设备信息
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                location:
-                  type: string
-                type:
-                  type: string
-                status:
-                  type: string
-      responses:
-        '200':
-          description: 更新成功
-
-    delete:
-      tags: [Devices]
-      summary: 删除设备
-      description: 删除指定设备
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: 删除成功
-
-  /api/devices/{device_id}/overview:
-    get:
-      tags: [Devices]
-      summary: 设备概览
-      description: 获取设备的综合概览信息
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: 设备概览
+        '404':
+          description: 设备不存在
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/Error'
 
   /api/devices/{device_id}/sensors:
     get:
       tags: [Devices]
-      summary: 获取设备传感器
-      description: 获取设备下的所有传感器
+      summary: 获取设备传感器列表
+      description: 获取指定设备下的所有传感器
+      security:
+        - bearerAuth: []
       parameters:
         - name: device_id
           in: path
@@ -454,73 +408,16 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Sensor'
+                  total:
+                    type: integer
 
-    post:
-      tags: [Devices]
-      summary: 创建传感器
-      description: 在设备下创建新传感器
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [type]
-              properties:
-                type:
-                  type: string
-                name:
-                  type: string
-                unit:
-                  type: string
-                status:
-                  type: string
-                  default: active
-      responses:
-        '201':
-          description: 传感器创建成功
-
-  /api/devices/{device_id}/readings:
+  /api/devices/{device_id}/sensors/{sensor_id}/latest:
     get:
       tags: [Devices]
-      summary: 获取设备读数
-      description: 获取设备所有传感器的读数
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: start_time
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: end_time
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: data_type
-          in: query
-          schema:
-            type: string
-            enum: [numeric, image, video]
-      responses:
-        '200':
-          description: 读数列表
-
-  /api/devices/{device_id}/sensors/{sensor_id}/readings:
-    post:
-      tags: [Devices]
-      summary: 创建传感器读数
-      description: 为指定传感器创建新的读数记录
+      summary: 获取传感器最新读数
+      description: 获取指定传感器的最新读数
+      security:
+        - bearerAuth: []
       parameters:
         - name: device_id
           in: path
@@ -532,87 +429,102 @@ paths:
           required: true
           schema:
             type: integer
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                data_type:
-                  type: string
-                  enum: [numeric, image, video]
-                value:
-                  type: number
-                unit:
-                  type: string
-                file:
-                  type: string
-                  format: binary
-                metadata:
-                  type: string
       responses:
-        '201':
-          description: 读数创建成功
+        '200':
+          description: 最新读数
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Reading'
 
-  /api/devices/readings/{reading_id}/download:
+  /api/devices/{device_id}/sensors/{sensor_id}/readings:
     get:
       tags: [Devices]
-      summary: 下载文件读数
-      description: 下载图片或视频类型的读数文件
+      summary: 获取传感器读数列表
+      description: 获取指定传感器的读数列表（支持分页）
+      security:
+        - bearerAuth: []
       parameters:
-        - name: reading_id
+        - name: device_id
           in: path
           required: true
           schema:
             type: integer
-        - name: thumbnail
+        - name: sensor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
           in: query
           schema:
-            type: boolean
-            default: false
-      responses:
-        '200':
-          description: 文件下载成功
-        '302':
-          description: 重定向到预签名URL
-
-  /api/devices/{device_id}/statistics:
-    get:
-      tags: [Devices]
-      summary: 设备统计信息
-      description: 获取设备的统计分析信息
-      parameters:
-        - name: device_id
-          in: path
-          required: true
+            type: integer
+            default: 1
+        - name: limit
+          in: query
           schema:
             type: integer
+            default: 100
       responses:
         '200':
-          description: 统计信息
+          description: 读数列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reading'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  has_next:
+                    type: boolean
 
-  /api/devices/{device_id}/health:
+  /api/devices/health:
     get:
       tags: [Devices]
-      summary: 设备健康状态
-      description: 获取设备健康状态检查结果
-      parameters:
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: integer
+      summary: 设备服务健康检查
+      description: 检查设备服务的健康状态
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: 健康状态
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  timestamp:
+                    type: string
 
   # Sensor endpoints
   /api/sensors:
     get:
       tags: [Sensors]
       summary: 获取传感器列表
-      description: 获取所有传感器列表
+      description: 获取所有传感器
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: 传感器列表
@@ -631,8 +543,10 @@ paths:
   /api/sensors/{sensor_id}:
     get:
       tags: [Sensors]
-      summary: 获取传感器详情
-      description: 获取指定传感器的详细信息
+      summary: 获取特定传感器
+      description: 根据传感器ID获取传感器详细信息
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -641,13 +555,26 @@ paths:
             type: integer
       responses:
         '200':
-          description: 传感器详情
+          description: 传感器详细信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Sensor'
+        '404':
+          description: 传感器不存在
 
   /api/sensors/{sensor_id}/readings:
     get:
       tags: [Sensors]
       summary: 获取传感器读数
-      description: 获取指定传感器的读数列表
+      description: 获取指定传感器的读数（支持分页和时间范围）
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -658,10 +585,12 @@ paths:
           in: query
           schema:
             type: integer
+            default: 1
         - name: per_page
           in: query
           schema:
             type: integer
+            default: 100
         - name: start_time
           in: query
           schema:
@@ -675,11 +604,26 @@ paths:
       responses:
         '200':
           description: 读数列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reading'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
 
     post:
       tags: [Sensors]
       summary: 创建传感器读数
-      description: 为传感器创建新的数值型读数
+      description: 为指定传感器创建新的读数
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -694,6 +638,10 @@ paths:
               type: object
               required: [value]
               properties:
+                data_type:
+                  type: string
+                  enum: [numeric]
+                  default: numeric
                 value:
                   type: number
                 unit:
@@ -703,12 +651,23 @@ paths:
       responses:
         '201':
           description: 读数创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Reading'
 
   /api/sensors/{sensor_id}/readings/latest:
     get:
       tags: [Sensors]
-      summary: 获取最新读数
-      description: 获取传感器的最新读数
+      summary: 获取传感器最新读数
+      description: 获取指定传感器的最新读数
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -718,12 +677,25 @@ paths:
       responses:
         '200':
           description: 最新读数
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Reading'
+        '404':
+          description: 没有找到读数
 
   /api/sensors/{sensor_id}/statistics:
     get:
       tags: [Sensors]
-      summary: 传感器统计信息
-      description: 获取传感器的统计分析信息
+      summary: 获取传感器统计信息
+      description: 获取指定传感器的统计信息
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -733,13 +705,47 @@ paths:
       responses:
         '200':
           description: 统计信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      sensor_id:
+                        type: integer
+                      sensor_name:
+                        type: string
+                      sensor_type:
+                        type: string
+                      unit:
+                        type: string
+                      total_readings:
+                        type: integer
+                      average_value:
+                        type: number
+                      min_value:
+                        type: number
+                      max_value:
+                        type: number
+                      first_reading:
+                        type: string
+                        format: date-time
+                      last_reading:
+                        type: string
+                        format: date-time
 
   # Alarm endpoints
   /api/alarms:
     get:
       tags: [Alarms]
       summary: 获取告警列表
-      description: 获取系统告警列表，支持筛选
+      description: 获取告警列表（支持按状态、严重程度和传感器过滤）
+      security:
+        - bearerAuth: []
       parameters:
         - name: status
           in: query
@@ -760,10 +766,12 @@ paths:
           in: query
           schema:
             type: integer
+            default: 1
         - name: per_page
           in: query
           schema:
             type: integer
+            default: 20
       responses:
         '200':
           description: 告警列表
@@ -778,12 +786,16 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Alarm'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
 
   /api/alarms/{alarm_id}:
     get:
       tags: [Alarms]
-      summary: 获取告警详情
-      description: 获取指定告警的详细信息
+      summary: 获取特定告警
+      description: 根据告警ID获取告警详细信息
+      security:
+        - bearerAuth: []
       parameters:
         - name: alarm_id
           in: path
@@ -792,13 +804,56 @@ paths:
             type: integer
       responses:
         '200':
-          description: 告警详情
+          description: 告警详细信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Alarm'
+        '404':
+          description: 告警不存在
 
   /api/alarms/{alarm_id}/resolve:
-    put:
+    post:
       tags: [Alarms]
       summary: 解决告警
       description: 标记告警为已解决状态
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alarm_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 告警已解决
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Alarm'
+        '404':
+          description: 告警不存在
+
+  /api/alarms/{alarm_id}/status:
+    put:
+      tags: [Alarms]
+      summary: 更新告警状态
+      description: 更新告警的状态
+      security:
+        - bearerAuth: []
       parameters:
         - name: alarm_id
           in: path
@@ -813,15 +868,319 @@ paths:
               properties:
                 resolved_by:
                   type: string
+                  default: system
       responses:
         '200':
-          description: 告警已解决
+          description: 告警状态更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Alarm'
+
+  /api/alarms/rules:
+    get:
+      tags: [Alarms]
+      summary: 获取告警规则列表
+      description: 获取告警规则列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sensor_id
+          in: query
+          schema:
+            type: integer
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 告警规则列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlarmRule'
+
+    post:
+      tags: [Alarms]
+      summary: 创建告警规则
+      description: 创建新的告警规则
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, sensor_id, rule_type, condition, threshold_value]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                sensor_id:
+                  type: integer
+                rule_type:
+                  type: string
+                condition:
+                  type: string
+                  enum: ['>', '<', '>=', '<=', '==', '!=']
+                threshold_value:
+                  type: number
+                consecutive_count:
+                  type: integer
+                  default: 1
+                severity:
+                  type: string
+                  enum: [low, medium, high]
+                  default: medium
+                email_enabled:
+                  type: boolean
+                  default: false
+                webhook_enabled:
+                  type: boolean
+                  default: false
+                webhook_url:
+                  type: string
+      responses:
+        '201':
+          description: 告警规则创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/AlarmRule'
+
+  /api/alarms/rules/{rule_id}:
+    get:
+      tags: [Alarms]
+      summary: 获取告警规则
+      description: 根据规则ID获取告警规则详细信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 告警规则详细信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/AlarmRule'
+
+    put:
+      tags: [Alarms]
+      summary: 更新告警规则
+      description: 更新现有的告警规则
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                condition:
+                  type: string
+                  enum: ['>', '<', '>=', '<=', '==', '!=']
+                threshold_value:
+                  type: number
+                consecutive_count:
+                  type: integer
+                severity:
+                  type: string
+                  enum: [low, medium, high]
+                email_enabled:
+                  type: boolean
+                webhook_enabled:
+                  type: boolean
+                webhook_url:
+                  type: string
+      responses:
+        '200':
+          description: 告警规则更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/AlarmRule'
+
+    delete:
+      tags: [Alarms]
+      summary: 删除告警规则
+      description: 删除指定的告警规则
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 告警规则删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /api/alarms/rules/{rule_id}/toggle:
+    post:
+      tags: [Alarms]
+      summary: 启用/禁用告警规则
+      description: 切换告警规则的启用状态
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 告警规则状态切换成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/AlarmRule'
+
+  /api/alarms/stats:
+    get:
+      tags: [Alarms]
+      summary: 获取告警统计信息
+      description: 获取告警统计信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sensor_id
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        '200':
+          description: 告警统计信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/alarms/test/{sensor_id}:
+    post:
+      tags: [Alarms]
+      summary: 测试告警规则
+      description: 测试指定传感器的告警规则
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sensor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [test_value]
+              properties:
+                test_value:
+                  type: number
+      responses:
+        '200':
+          description: 测试结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alarm'
 
   /api/alarms/sensors/{sensor_id}:
     get:
       tags: [Alarms]
       summary: 获取传感器告警
       description: 获取指定传感器的告警列表
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -833,25 +1192,108 @@ paths:
           schema:
             type: string
             enum: [active, resolved, all]
+            default: active
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
       responses:
         '200':
           description: 传感器告警列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alarm'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
 
   /api/alarms/statistics:
     get:
       tags: [Alarms]
-      summary: 告警统计信息
-      description: 获取告警系统的统计信息
+      summary: 获取告警详细统计
+      description: 获取告警的详细统计信息
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: 告警统计
+          description: 告警统计信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      by_status:
+                        type: object
+                      by_severity:
+                        type: object
+                      top_sensors:
+                        type: object
 
-  # Prediction endpoints
+  # Forecast endpoints
   /api/forecast/sensors/{sensor_id}:
+    get:
+      tags: [Predictions]
+      summary: 获取传感器预测结果
+      description: 获取指定传感器的预测结果
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sensor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 预测结果列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prediction'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
     post:
       tags: [Predictions]
       summary: 触发预测
-      description: 手动触发传感器数据预测
+      description: 手动触发指定传感器的预测任务
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -875,33 +1317,13 @@ paths:
                   status:
                     type: string
 
-    get:
-      tags: [Predictions]
-      summary: 获取预测结果
-      description: 获取传感器的预测结果列表
-      parameters:
-        - name: sensor_id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: page
-          in: query
-          schema:
-            type: integer
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: 预测结果列表
-
   /api/forecast/sensors/{sensor_id}/latest:
     get:
       tags: [Predictions]
-      summary: 获取最新预测
-      description: 获取传感器的最新预测结果（未来24小时）
+      summary: 获取最新预测结果
+      description: 获取指定传感器的最新预测结果（未来24小时）
+      security:
+        - bearerAuth: []
       parameters:
         - name: sensor_id
           in: path
@@ -911,18 +1333,235 @@ paths:
       responses:
         '200':
           description: 最新预测结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prediction'
+                  forecast_period:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        format: date-time
+                      end:
+                        type: string
+                        format: date-time
+                      duration_hours:
+                        type: integer
+        '404':
+          description: 没有找到预测结果
 
-  # MCP endpoints
-  /api/mcp/devices:
+  /api/forecast/fields:
     get:
-      tags: [MCP]
-      summary: MCP获取设备列表
-      description: MCP服务获取设备列表
+      tags: [Predictions]
+      summary: 获取可预测字段
+      description: 获取可以进行预测的字段列表
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: 设备列表
+          description: 可预测字段列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: array
+                    items:
+                      type: string
 
-  /api/mcp/add:
+  /api/forecast/{device_id}:
+    get:
+      tags: [Predictions]
+      summary: 设备预测
+      description: 对指定设备进行预测（聚合设备下所有传感器数据）
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: field
+          in: query
+          schema:
+            type: string
+            default: numeric_value
+        - name: periods
+          in: query
+          schema:
+            type: integer
+            default: 24
+        - name: freq
+          in: query
+          schema:
+            type: string
+            default: H
+      responses:
+        '200':
+          description: 设备预测结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  device_id:
+                    type: integer
+                  field:
+                    type: string
+                  forecast:
+                    type: object
+        '400':
+          description: 预测参数错误
+
+  # MQTT endpoints
+  /api/mqtt/status:
+    get:
+      tags: [MQTT]
+      summary: 获取MQTT连接状态
+      description: 获取MQTT服务的连接状态
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: MQTT连接状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/mqtt/sensors/{client_id}/config:
+    post:
+      tags: [MQTT]
+      summary: 发送传感器配置
+      description: 通过MQTT发送传感器配置
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: 配置发送成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: 配置数据无效
+        '500':
+          description: 配置发送失败
+
+  /api/mqtt/sensors/{client_id}/capture:
+    post:
+      tags: [MQTT]
+      summary: 触发数据捕获
+      description: 通过MQTT触发传感器数据捕获
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [image, video]
+                  default: image
+      responses:
+        '200':
+          description: 捕获命令发送成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: 捕获类型无效
+        '500':
+          description: 捕获命令发送失败
+
+  /api/mqtt/publish:
+    post:
+      tags: [MQTT]
+      summary: 发布MQTT消息
+      description: 手动发布MQTT消息
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic, payload]
+              properties:
+                topic:
+                  type: string
+                payload:
+                  type: object
+                qos:
+                  type: integer
+                  default: 1
+                  enum: [0, 1, 2]
+      responses:
+        '200':
+          description: 消息发布成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: 消息数据无效
+        '500':
+          description: 消息发布失败
+
+  # MCP endpoints
+  /api/v1/mcp/add:
     post:
       tags: [MCP]
       summary: MCP添加设备
@@ -944,12 +1583,45 @@ paths:
       responses:
         '201':
           description: 设备添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
-  /api/mcp/devices/{device_id}/sensors:
+  /api/v1/mcp/devices:
+    get:
+      tags: [MCP]
+      summary: MCP获取设备列表
+      description: 通过MCP服务获取所有设备
+      responses:
+        '200':
+          description: 设备列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    location:
+                      type: string
+                    type:
+                      type: string
+                    status:
+                      type: string
+
+  /api/v1/mcp/devices/{device_id}/sensors:
     get:
       tags: [MCP]
       summary: MCP获取设备传感器
-      description: 通过MCP服务获取设备传感器
+      description: 通过MCP服务获取指定设备的传感器
       parameters:
         - name: device_id
           in: path
@@ -959,11 +1631,28 @@ paths:
       responses:
         '200':
           description: 传感器列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    type:
+                      type: string
+                    name:
+                      type: string
+                    unit:
+                      type: string
+                    status:
+                      type: string
 
     post:
       tags: [MCP]
       summary: MCP添加传感器
-      description: 通过MCP服务添加传感器
+      description: 通过MCP服务为设备添加传感器
       parameters:
         - name: device_id
           in: path
@@ -986,11 +1675,19 @@ paths:
                   type: string
                 status:
                   type: string
+                  default: active
       responses:
         '201':
           description: 传感器添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
-  /api/mcp/sensors/{sensor_id}/readings:
+  /api/v1/mcp/sensors/{sensor_id}/readings:
     get:
       tags: [MCP]
       summary: MCP获取传感器读数
@@ -1004,6 +1701,12 @@ paths:
       responses:
         '200':
           description: 读数列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reading'
 
     post:
       tags: [MCP]
@@ -1023,14 +1726,22 @@ paths:
               type: object
               required: [value]
               properties:
-                timestamp:
-                  type: string
-                  format: date-time
                 value:
                   type: number
+                unit:
+                  type: string
+                metadata:
+                  type: object
       responses:
         '201':
           description: 读数添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
 components:
   securitySchemes:
@@ -1065,9 +1776,9 @@ components:
           type: integer
         name:
           type: string
-        location:
+        device_type:
           type: string
-        type:
+        location:
           type: string
         status:
           type: string
@@ -1086,10 +1797,13 @@ components:
           type: integer
         device_id:
           type: integer
-        type:
-          type: string
         name:
           type: string
+        sensor_type:
+          type: string
+        data_type:
+          type: string
+          enum: [numeric, image, video]
         unit:
           type: string
         status:
@@ -1115,9 +1829,9 @@ components:
         data_type:
           type: string
           enum: [numeric, image, video]
-        value:
+        numeric_value:
           type: number
-        unit:
+        text_value:
           type: string
         file_path:
           type: string
@@ -1146,6 +1860,8 @@ components:
           type: integer
         sensor_id:
           type: integer
+        rule_id:
+          type: integer
         alarm_type:
           type: string
         threshold_value:
@@ -1166,6 +1882,46 @@ components:
         resolved_by:
           type: string
         created_at:
+          type: string
+          format: date-time
+
+    AlarmRule:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        sensor_id:
+          type: integer
+        rule_type:
+          type: string
+        condition:
+          type: string
+          enum: ['>', '<', '>=', '<=', '==', '!=']
+        threshold_value:
+          type: number
+        consecutive_count:
+          type: integer
+        severity:
+          type: string
+          enum: [low, medium, high]
+        is_active:
+          type: boolean
+        email_enabled:
+          type: boolean
+        webhook_enabled:
+          type: boolean
+        webhook_url:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
 

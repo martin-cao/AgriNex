@@ -10,6 +10,7 @@ from ..core.config import Config
 from ..core.sensor_data import SensorData
 from ..adapters.mqtt_adapter import MQTTAdapter
 from ..adapters.serial_adapter import SerialAdapter
+from .http_service import HTTPHealthService
 
 
 class SensorService:
@@ -22,6 +23,9 @@ class SensorService:
         # Adapters
         self.mqtt_adapter = MQTTAdapter(config)
         self.serial_adapter = SerialAdapter(config)
+        
+        # HTTP Health Service
+        self.http_service = HTTPHealthService(self, port=8080)
         
         # Service state
         self.running = False
@@ -153,6 +157,10 @@ class SensorService:
             self.start_time = datetime.now()
             self.running = True
             
+            # Start HTTP health service first
+            self.logger.info("Starting HTTP health service...")
+            await self.http_service.start()
+            
             # Connect to MQTT
             self.logger.info("Connecting to MQTT broker...")
             mqtt_connected = await self.mqtt_adapter.connect()
@@ -185,6 +193,9 @@ class SensorService:
         try:
             self.logger.info("Stopping sensor service...")
             self.running = False
+            
+            # Stop HTTP service
+            await self.http_service.stop()
             
             # Disconnect adapters
             self.serial_adapter.disconnect()

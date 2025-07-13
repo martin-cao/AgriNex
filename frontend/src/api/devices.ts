@@ -63,5 +63,44 @@ export const devicesApi = {
   getDevicesHealth: async (): Promise<ApiResponse<{ total: number; online: number; offline: number }>> => {
     const response = await api.get('/devices/health');
     return response.data;
+  },
+
+  // 验证模拟设备
+  validateSimulationDevice: async (deviceData: {
+    device_id: string;
+    address: string;
+    device_type: string;
+    name: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    mqtt_data?: any;
+    device_data?: any;
+  }>> => {
+    const response = await api.post('/devices/validate', deviceData);
+    return response.data;
+  },
+
+  // 注册已验证的设备
+  registerValidatedDevice: async (deviceData: {
+    device_id: string;
+    address: string;
+    device_type: string;
+    name: string;
+    location: string;
+  }): Promise<ApiResponse<Device>> => {
+    const response = await api.post('/devices/register', deviceData);
+    return response.data;
+  },
+
+  // 获取设备MQTT状态
+  getDeviceMqttStatus: async (deviceId: string): Promise<ApiResponse<{
+    device_id: string;
+    is_online: boolean;
+    last_seen: string | null;
+    seconds_since_last_data: number | null;
+  }>> => {
+    const response = await api.get(`/devices/${deviceId}/mqtt-status`);
+    return response.data;
   }
 };

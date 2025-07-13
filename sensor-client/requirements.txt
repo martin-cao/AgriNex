@@ -5,6 +5,9 @@ paho-mqtt>=1.6.1
 pyserial>=3.5
 asyncio-mqtt>=0.13.0
 
+# HTTP health service
+aiohttp>=3.8.0
+
 # Data processing
 numpy>=1.21.0
 

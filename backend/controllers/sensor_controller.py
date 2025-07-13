@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.sensor import Sensor
 from models.reading import Reading
+from models.device import Device
+from models.device_template import DeviceTemplate
 from services.sensor_service import SensorService
 from extensions import db
 
@@ -172,3 +174,96 @@ def get_sensor_statistics(sensor_id):
             'last_reading': stats.last_reading.isoformat() if stats.last_reading else None
         }
     })
+
+@sensor_bp.route('/', methods=['POST'])
+@jwt_required()
+def create_sensor():
+    """创建传感器 - 必须关联到有效设备并符合设备模板"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        # 验证必需字段
+        required_fields = ['device_id', 'sensor_type']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }), 400
+        
+        # 验证设备存在
+        device = Device.query.get(data['device_id'])
+        if not device:
+            return jsonify({
+                'success': False,
+                'error': f'Device with ID {data["device_id"]} not found'
+            }), 404
+        
+        # 验证设备是否处于活跃状态
+        if not device.is_active:
+            return jsonify({
+                'success': False,
+                'error': 'Cannot add sensors to inactive devices'
+            }), 400
+        
+        # 获取设备模板
+        device_template = DeviceTemplate.get_by_device_type(device.type)
+        if not device_template:
+            return jsonify({
+                'success': False,
+                'error': f'No template found for device type: {device.type}'
+            }), 400
+        
+        # 验证传感器类型是否在设备模板中定义
+        if not device_template.validate_sensor_type(data['sensor_type']):
+            allowed_types = [config['type'] for config in device_template.get_sensor_configs()]
+            return jsonify({
+                'success': False,
+                'error': f'Sensor type "{data["sensor_type"]}" is not allowed for device type "{device.type}". Allowed types: {allowed_types}'
+            }), 400
+        
+        # 检查是否已存在相同类型的传感器
+        existing_sensor = Sensor.query.filter_by(
+            device_id=data['device_id'],
+            type=data['sensor_type']
+        ).first()
+        
+        if existing_sensor:
+            return jsonify({
+                'success': False,
+                'error': f'Sensor of type "{data["sensor_type"]}" already exists for device {device.name}'
+            }), 400
+        
+        # 从设备模板获取传感器配置
+        sensor_configs = device_template.get_sensor_configs()
+        sensor_template = next((config for config in sensor_configs 
+                               if config['type'] == data['sensor_type']), None)
+        
+        # 创建传感器
+        sensor = Sensor.create(
+            device_id=data['device_id'],
+            sensor_type=data['sensor_type'],
+            name=data.get('name', sensor_template['name'] if sensor_template else data['sensor_type']),
+            unit=data.get('unit', sensor_template['unit'] if sensor_template else ''),
+            status=data.get('status', 'active')
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'data': sensor.to_dict(),
+            'message': f'Sensor created successfully for device {device.name}'
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

@@ -95,30 +95,63 @@
     <el-dialog
       v-model="showAddDialog"
       :title="isEditing ? '编辑设备' : '添加设备'"
-      width="600px"
+      width="700px"
       @close="resetForm"
     >
       <el-form
         ref="deviceFormRef"
         :model="deviceForm"
         :rules="deviceRules"
-        label-width="100px"
+        label-width="120px"
+        style="margin-top: 20px"
       >
         <el-form-item label="设备名称" prop="name">
           <el-input v-model="deviceForm.name" placeholder="请输入设备名称" />
         </el-form-item>
+        
         <el-form-item label="设备类型" prop="device_type">
           <el-select v-model="deviceForm.device_type" placeholder="请选择设备类型">
+            <el-option label="土壤传感器" value="soil_sensor" />
+            <el-option label="气象站" value="weather_station" />
+            <el-option label="灌溉控制器" value="irrigation_controller" />
             <el-option label="环境监控" value="environment" />
-            <el-option label="土壤监测" value="soil" />
-            <el-option label="气象站" value="weather" />
             <el-option label="摄像头" value="camera" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
+        
+        <!-- 设备网络配置 -->
+        <el-form-item label="IP地址" prop="ip_address">
+          <el-input v-model="deviceForm.ip_address" placeholder="如: localhost 或 192.168.1.100" />
+          <div class="form-help">
+            设备的IP地址或主机名
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="端口" prop="port">
+          <el-input-number 
+            v-model="deviceForm.port" 
+            :min="1" 
+            :max="65535" 
+            placeholder="如: 30001"
+            style="width: 100%"
+          />
+          <div class="form-help">
+            设备HTTP服务端口
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="Client ID" prop="client_id">
+          <el-input v-model="deviceForm.client_id" placeholder="如: agrinex_sensor_docker" />
+          <div class="form-help">
+            MQTT客户端ID，必须与设备发送的主题中的client_id一致
+          </div>
+        </el-form-item>
+        
         <el-form-item label="位置" prop="location">
           <el-input v-model="deviceForm.location" placeholder="请输入设备位置" />
         </el-form-item>
+        
         <el-form-item label="描述" prop="description">
           <el-input
             v-model="deviceForm.description"
@@ -127,14 +160,20 @@
             placeholder="请输入设备描述"
           />
         </el-form-item>
+        
         <el-form-item label="是否启用" prop="is_active">
           <el-switch v-model="deviceForm.is_active" />
+          <div class="form-help">
+            关闭后设备将无法接收MQTT数据
+          </div>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showAddDialog = false">取消</el-button>
+          <el-button @click="showAddDialog = false">
+            取消
+          </el-button>
           <el-button
             type="primary"
             :loading="submitLoading"
@@ -155,6 +194,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { useDevicesStore } from '../stores/devices';
 import { formatDateTime, getDeviceStatusText, getDeviceStatusColor } from '../utils';
 import type { Device } from '../types';
+import { devicesApi } from '../api';
 
 const router = useRouter();
 const devicesStore = useDevicesStore();
@@ -172,7 +212,11 @@ const deviceForm = reactive({
   device_type: '',
   location: '',
   description: '',
-  is_active: true
+  is_active: true,
+  // 网络配置字段
+  ip_address: '',
+  port: null as number | null,
+  client_id: ''
 });
 
 // 表单验证规则
@@ -186,6 +230,17 @@ const deviceRules: FormRules = {
   ],
   location: [
     { required: true, message: '请输入设备位置', trigger: 'blur' }
+  ],
+  ip_address: [
+    { required: true, message: '请输入IP地址', trigger: 'blur' }
+  ],
+  port: [
+    { required: true, message: '请输入端口号', trigger: 'blur' },
+    { type: 'number', min: 1, max: 65535, message: '端口号必须在1-65535之间', trigger: 'blur' }
+  ],
+  client_id: [
+    { required: true, message: '请输入Client ID', trigger: 'blur' },
+    { min: 1, max: 100, message: 'Client ID长度在 1 到 100 个字符', trigger: 'blur' }
   ]
 };
 
@@ -276,9 +331,11 @@ const submitDevice = async () => {
     submitLoading.value = true;
     
     if (isEditing.value && currentEditingDevice.value) {
+      // 编辑现有设备
       await devicesStore.updateDevice(currentEditingDevice.value.id, deviceForm);
       ElMessage.success('设备更新成功');
     } else {
+      // 创建新设备
       await devicesStore.createDevice(deviceForm);
       ElMessage.success('设备创建成功');
     }
@@ -303,6 +360,9 @@ const resetForm = () => {
   deviceForm.location = '';
   deviceForm.description = '';
   deviceForm.is_active = true;
+  deviceForm.ip_address = '';
+  deviceForm.port = null;
+  deviceForm.client_id = '';
   
   isEditing.value = false;
   currentEditingDevice.value = null;
@@ -365,6 +425,48 @@ onMounted(async () => {
 
 :deep(.el-table__row:hover) {
   background-color: #f5f7fa;
+}
+
+/* 新增样式 */
+.device-type-selector {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.device-type-selector .el-radio-group {
+  margin: 0 auto;
+}
+
+.simulation-status {
+  margin-bottom: 20px;
+}
+
+.form-help {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
+}
+
+.validation-progress {
+  margin: 20px 0;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.validation-progress h4 {
+  margin: 0 0 15px 0;
+  color: #606266;
+}
+
+.validation-details {
+  margin-top: 15px;
+}
+
+.validation-details p {
+  margin: 10px 0;
+  color: #666;
 }
 
 @media (max-width: 768px) {

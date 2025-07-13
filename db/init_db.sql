@@ -27,12 +27,18 @@ CREATE TABLE `devices` (
   `location` varchar(255) COMMENT '设备位置',
   `type` varchar(50) COMMENT '设备类型',
   `status` varchar(50) DEFAULT 'active' COMMENT '设备状态',
+  `ip_address` varchar(45) COMMENT '设备IP地址',
+  `port` int(11) COMMENT '设备端口',
+  `is_active` tinyint(1) DEFAULT 1 COMMENT '是否启用',
+  `client_id` varchar(255) COMMENT 'MQTT客户端ID',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_client_id` (`client_id`),
   KEY `idx_type_status` (`type`, `status`),
   KEY `idx_location` (`location`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_is_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设备表';
 
 -- 3. 传感器表 (sensors)
@@ -240,6 +246,25 @@ CREATE TABLE `ai_suggestions` (
   CONSTRAINT `fk_ai_suggestions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI智能建议记录表';
 
+-- 13. 设备模板表 (device_templates)
+DROP TABLE IF EXISTS `device_templates`;
+CREATE TABLE `device_templates` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '模板ID',
+  `device_type` varchar(50) NOT NULL UNIQUE COMMENT '设备类型',
+  `name` varchar(255) NOT NULL COMMENT '模板名称',
+  `description` text COMMENT '模板描述',
+  `manufacturer` varchar(255) COMMENT '制造商',
+  `model` varchar(255) COMMENT '型号',
+  `sensor_configs` json NOT NULL COMMENT '传感器配置JSON',
+  `default_config` json DEFAULT NULL COMMENT '默认配置JSON',
+  `is_active` tinyint(1) DEFAULT 1 COMMENT '是否启用',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_device_type` (`device_type`),
+  KEY `idx_is_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设备模板表';
+
 -- ====================================
 -- 初始化数据 (Initial Data)
 -- ====================================
@@ -277,6 +302,130 @@ INSERT INTO `alarm_rules` (`name`, `description`, `sensor_id`, `rule_type`, `con
 -- 为每个告警规则创建状态跟踪
 INSERT INTO `alarm_states` (`alarm_rule_id`, `consecutive_count`) VALUES
 (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0);
+
+-- 插入预定义设备模板
+INSERT INTO `device_templates` (`device_type`, `name`, `description`, `manufacturer`, `model`, `sensor_configs`, `default_config`) VALUES
+('smart_farm', '智慧农场设备', '综合性农业监测设备，包含土壤、环境等多种传感器', 'AgriNex', 'SF-2024',
+'[
+  {"type": "temperature", "name": "环境温度传感器", "unit": "°C", "description": "监测环境温度", "is_required": true, "validation_rules": {"min": -40, "max": 80}},
+  {"type": "humidity", "name": "环境湿度传感器", "unit": "%", "description": "监测空气湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "light", "name": "光照强度传感器", "unit": "lux", "description": "监测光照强度", "is_required": true, "validation_rules": {"min": 0, "max": 10000}},
+  {"type": "soil_moisture", "name": "土壤湿度传感器", "unit": "%", "description": "监测土壤含水量", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "soil_ph", "name": "土壤pH传感器", "unit": "pH", "description": "监测土壤酸碱度", "is_required": false, "validation_rules": {"min": 0, "max": 14}},
+  {"type": "soil_ec", "name": "土壤EC传感器", "unit": "mS/cm", "description": "监测土壤电导率", "is_required": false, "validation_rules": {"min": 0, "max": 10}}
+]',
+'{"collection_interval": 30, "data_retention_days": 365, "alert_enabled": true}'),
+
+('weather_station', '气象站设备', '专业气象监测设备，提供全面的天气数据', 'AgriNex', 'WS-2024',
+'[
+  {"type": "temperature", "name": "气温传感器", "unit": "°C", "description": "监测大气温度", "is_required": true, "validation_rules": {"min": -50, "max": 60}},
+  {"type": "humidity", "name": "湿度传感器", "unit": "%", "description": "监测空气湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "pressure", "name": "气压传感器", "unit": "hPa", "description": "监测大气压强", "is_required": true, "validation_rules": {"min": 800, "max": 1200}},
+  {"type": "wind_speed", "name": "风速传感器", "unit": "m/s", "description": "监测风速", "is_required": true, "validation_rules": {"min": 0, "max": 50}},
+  {"type": "wind_direction", "name": "风向传感器", "unit": "°", "description": "监测风向", "is_required": false, "validation_rules": {"min": 0, "max": 360}},
+  {"type": "rain_level", "name": "雨量传感器", "unit": "mm", "description": "监测降雨量", "is_required": false, "validation_rules": {"min": 0, "max": 200}},
+  {"type": "uv_index", "name": "UV指数传感器", "unit": "UV", "description": "监测紫外线指数", "is_required": false, "validation_rules": {"min": 0, "max": 15}}
+]',
+'{"collection_interval": 60, "data_retention_days": 1095, "alert_enabled": true}'),
+
+('environmental_monitor', '环境监测设备', '室内外环境质量监测设备', 'AgriNex', 'EM-2024',
+'[
+  {"type": "temperature", "name": "温度传感器", "unit": "°C", "description": "监测环境温度", "is_required": true, "validation_rules": {"min": -30, "max": 70}},
+  {"type": "humidity", "name": "湿度传感器", "unit": "%", "description": "监测空气湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "co2", "name": "CO2传感器", "unit": "ppm", "description": "监测二氧化碳浓度", "is_required": true, "validation_rules": {"min": 0, "max": 5000}},
+  {"type": "noise", "name": "噪音传感器", "unit": "dB", "description": "监测环境噪音", "is_required": false, "validation_rules": {"min": 0, "max": 120}},
+  {"type": "light", "name": "光照传感器", "unit": "lux", "description": "监测光照强度", "is_required": false, "validation_rules": {"min": 0, "max": 2000}}
+]',
+'{"collection_interval": 15, "data_retention_days": 180, "alert_enabled": true}'),
+
+('water_management', '水管理设备', '水质监测和灌溉控制设备', 'AgriNex', 'WM-2024',
+'[
+  {"type": "water_level", "name": "水位传感器", "unit": "%", "description": "监测水位高度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "flow_rate", "name": "流量传感器", "unit": "L/min", "description": "监测水流速度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "pressure", "name": "水压传感器", "unit": "bar", "description": "监测水压", "is_required": true, "validation_rules": {"min": 0, "max": 20}},
+  {"type": "temperature", "name": "水温传感器", "unit": "°C", "description": "监测水温", "is_required": false, "validation_rules": {"min": 0, "max": 50}}
+]',
+'{"collection_interval": 20, "data_retention_days": 365, "alert_enabled": true}'),
+
+-- 新增设备类型预设
+
+('greenhouse_control', '温室控制系统', '智能温室环境控制与监测设备', 'AgriNex', 'GH-2024',
+'[
+  {"type": "temperature", "name": "温室温度传感器", "unit": "°C", "description": "监测温室内部温度", "is_required": true, "validation_rules": {"min": 0, "max": 50}},
+  {"type": "humidity", "name": "温室湿度传感器", "unit": "%", "description": "监测温室内部湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "co2", "name": "CO2浓度传感器", "unit": "ppm", "description": "监测二氧化碳浓度", "is_required": true, "validation_rules": {"min": 300, "max": 2000}},
+  {"type": "light", "name": "光照强度传感器", "unit": "lux", "description": "监测光照强度", "is_required": true, "validation_rules": {"min": 0, "max": 100000}},
+  {"type": "soil_moisture", "name": "土壤湿度传感器", "unit": "%", "description": "监测土壤含水量", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "soil_temperature", "name": "土壤温度传感器", "unit": "°C", "description": "监测土壤温度", "is_required": false, "validation_rules": {"min": 5, "max": 40}},
+  {"type": "wind_speed", "name": "内部风速传感器", "unit": "m/s", "description": "监测温室内风速", "is_required": false, "validation_rules": {"min": 0, "max": 10}}
+]',
+'{"collection_interval": 10, "data_retention_days": 730, "alert_enabled": true}'),
+
+('soil_monitoring', '土壤监测站', '专业土壤环境监测设备', 'AgriNex', 'SM-2024',
+'[
+  {"type": "soil_moisture", "name": "土壤湿度传感器", "unit": "%", "description": "监测土壤含水量", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "soil_temperature", "name": "土壤温度传感器", "unit": "°C", "description": "监测土壤温度", "is_required": true, "validation_rules": {"min": -10, "max": 50}},
+  {"type": "soil_ph", "name": "土壤pH传感器", "unit": "pH", "description": "监测土壤酸碱度", "is_required": true, "validation_rules": {"min": 3, "max": 10}},
+  {"type": "soil_ec", "name": "土壤电导率传感器", "unit": "mS/cm", "description": "监测土壤电导率", "is_required": true, "validation_rules": {"min": 0, "max": 20}},
+  {"type": "soil_npk", "name": "土壤NPK传感器", "unit": "mg/kg", "description": "监测土壤氮磷钾含量", "is_required": false, "validation_rules": {"min": 0, "max": 1000}},
+  {"type": "soil_organic", "name": "土壤有机质传感器", "unit": "%", "description": "监测土壤有机质含量", "is_required": false, "validation_rules": {"min": 0, "max": 10}}
+]',
+'{"collection_interval": 60, "data_retention_days": 1095, "alert_enabled": true}'),
+
+('livestock_monitor', '畜牧监测设备', '畜牧场环境与动物健康监测设备', 'AgriNex', 'LM-2024',
+'[
+  {"type": "temperature", "name": "环境温度传感器", "unit": "°C", "description": "监测畜舍温度", "is_required": true, "validation_rules": {"min": -20, "max": 45}},
+  {"type": "humidity", "name": "环境湿度传感器", "unit": "%", "description": "监测畜舍湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "ammonia", "name": "氨气浓度传感器", "unit": "ppm", "description": "监测氨气浓度", "is_required": true, "validation_rules": {"min": 0, "max": 200}},
+  {"type": "air_quality", "name": "空气质量传感器", "unit": "AQI", "description": "监测空气质量指数", "is_required": true, "validation_rules": {"min": 0, "max": 500}},
+  {"type": "noise", "name": "噪音传感器", "unit": "dB", "description": "监测环境噪音", "is_required": false, "validation_rules": {"min": 30, "max": 120}},
+  {"type": "motion", "name": "运动检测传感器", "unit": "count", "description": "检测动物活动", "is_required": false, "validation_rules": {"min": 0, "max": 10000}}
+]',
+'{"collection_interval": 30, "data_retention_days": 365, "alert_enabled": true}'),
+
+('aquaculture', '水产养殖监测', '水产养殖环境监测设备', 'AgriNex', 'AQ-2024',
+'[
+  {"type": "water_temperature", "name": "水温传感器", "unit": "°C", "description": "监测水体温度", "is_required": true, "validation_rules": {"min": 0, "max": 40}},
+  {"type": "dissolved_oxygen", "name": "溶解氧传感器", "unit": "mg/L", "description": "监测水中溶解氧含量", "is_required": true, "validation_rules": {"min": 0, "max": 20}},
+  {"type": "water_ph", "name": "水体pH传感器", "unit": "pH", "description": "监测水体酸碱度", "is_required": true, "validation_rules": {"min": 5, "max": 10}},
+  {"type": "turbidity", "name": "浊度传感器", "unit": "NTU", "description": "监测水体浊度", "is_required": true, "validation_rules": {"min": 0, "max": 1000}},
+  {"type": "salinity", "name": "盐度传感器", "unit": "ppt", "description": "监测水体盐度", "is_required": false, "validation_rules": {"min": 0, "max": 50}},
+  {"type": "water_level", "name": "水位传感器", "unit": "m", "description": "监测水位高度", "is_required": false, "validation_rules": {"min": 0, "max": 10}}
+]',
+'{"collection_interval": 15, "data_retention_days": 730, "alert_enabled": true}'),
+
+('storage_facility', '仓储监测设备', '农产品仓储环境监测设备', 'AgriNex', 'SF-2024',
+'[
+  {"type": "temperature", "name": "仓储温度传感器", "unit": "°C", "description": "监测仓库温度", "is_required": true, "validation_rules": {"min": -30, "max": 50}},
+  {"type": "humidity", "name": "仓储湿度传感器", "unit": "%", "description": "监测仓库湿度", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "co2", "name": "CO2浓度传感器", "unit": "ppm", "description": "监测二氧化碳浓度", "is_required": true, "validation_rules": {"min": 0, "max": 5000}},
+  {"type": "pressure", "name": "气压传感器", "unit": "hPa", "description": "监测气压变化", "is_required": false, "validation_rules": {"min": 900, "max": 1100}},
+  {"type": "pest_detection", "name": "害虫检测传感器", "unit": "count", "description": "检测害虫活动", "is_required": false, "validation_rules": {"min": 0, "max": 1000}},
+  {"type": "door_sensor", "name": "门禁传感器", "unit": "status", "description": "监测门禁状态", "is_required": false, "validation_rules": {"min": 0, "max": 1}}
+]',
+'{"collection_interval": 30, "data_retention_days": 365, "alert_enabled": true}'),
+
+('drone_sensor', '无人机传感器', '农业无人机搭载的多功能传感器', 'AgriNex', 'DS-2024',
+'[
+  {"type": "multispectral", "name": "多光谱传感器", "unit": "index", "description": "监测植被健康指数", "is_required": true, "validation_rules": {"min": 0, "max": 1}},
+  {"type": "thermal", "name": "热红外传感器", "unit": "°C", "description": "监测地表温度", "is_required": true, "validation_rules": {"min": -40, "max": 80}},
+  {"type": "altitude", "name": "高度传感器", "unit": "m", "description": "监测飞行高度", "is_required": true, "validation_rules": {"min": 0, "max": 500}},
+  {"type": "gps_accuracy", "name": "GPS精度传感器", "unit": "m", "description": "监测定位精度", "is_required": true, "validation_rules": {"min": 0, "max": 10}},
+  {"type": "battery_level", "name": "电池电量传感器", "unit": "%", "description": "监测电池电量", "is_required": false, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "wind_resistance", "name": "抗风能力传感器", "unit": "m/s", "description": "监测当前风阻", "is_required": false, "validation_rules": {"min": 0, "max": 20}}
+]',
+'{"collection_interval": 5, "data_retention_days": 180, "alert_enabled": true}'),
+
+('irrigation_control', '智能灌溉控制器', '精准灌溉控制与监测设备', 'AgriNex', 'IC-2024',
+'[
+  {"type": "soil_moisture", "name": "土壤湿度传感器", "unit": "%", "description": "监测土壤含水量", "is_required": true, "validation_rules": {"min": 0, "max": 100}},
+  {"type": "flow_rate", "name": "灌溉流量传感器", "unit": "L/min", "description": "监测灌溉流量", "is_required": true, "validation_rules": {"min": 0, "max": 200}},
+  {"type": "pressure", "name": "管道压力传感器", "unit": "bar", "description": "监测管道压力", "is_required": true, "validation_rules": {"min": 0, "max": 10}},
+  {"type": "valve_status", "name": "阀门状态传感器", "unit": "status", "description": "监测阀门开关状态", "is_required": true, "validation_rules": {"min": 0, "max": 1}},
+  {"type": "water_quality", "name": "水质传感器", "unit": "TDS", "description": "监测灌溉水质", "is_required": false, "validation_rules": {"min": 0, "max": 2000}},
+  {"type": "pump_status", "name": "水泵状态传感器", "unit": "rpm", "description": "监测水泵转速", "is_required": false, "validation_rules": {"min": 0, "max": 3600}}
+]',
+'{"collection_interval": 20, "data_retention_days": 365, "alert_enabled": true}');
 
 SET FOREIGN_KEY_CHECKS = 1;
 

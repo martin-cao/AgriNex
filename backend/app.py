@@ -77,6 +77,11 @@ def register_blueprints(app):
     app.register_blueprint(device_bp, url_prefix='/api/devices')
     logger.info("Registered device blueprint")
 
+    # 设备模板管理API
+    from controllers.device_template_controller import device_template_bp
+    app.register_blueprint(device_template_bp, url_prefix='/api/device-templates')
+    logger.info("Registered device template blueprint")
+
     # 传感器API
     from controllers.sensor_controller import sensor_bp
     app.register_blueprint(sensor_bp, url_prefix='/api/sensors')

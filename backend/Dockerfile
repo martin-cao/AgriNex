@@ -1,5 +1,5 @@
-# 使用 Python 3.9 的基础镜像
-FROM python:3.9-slim
+# 使用本地已有的Python镜像
+FROM 1python-api:latest
 
 # 设置工作目录
 WORKDIR /app
@@ -25,5 +25,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # 开放端口
 EXPOSE 8000
 
+# 复制启动脚本
+COPY entrypoint_simple.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # 启动 Flask 应用
-CMD ["python", "app.py"]
+CMD ["/app/entrypoint.sh"]

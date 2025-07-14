@@ -111,12 +111,17 @@
         
         <el-form-item label="设备类型" prop="device_type">
           <el-select v-model="deviceForm.device_type" placeholder="请选择设备类型">
-            <el-option label="土壤传感器" value="soil_sensor" />
-            <el-option label="气象站" value="weather_station" />
-            <el-option label="灌溉控制器" value="irrigation_controller" />
-            <el-option label="环境监控" value="environment" />
-            <el-option label="摄像头" value="camera" />
-            <el-option label="其他" value="other" />
+            <el-option label="智慧农场设备" value="smart_farm" />
+            <el-option label="气象站设备" value="weather_station" />
+            <el-option label="环境监测设备" value="environmental_monitor" />
+            <el-option label="水管理设备" value="water_management" />
+            <el-option label="温室控制系统" value="greenhouse_control" />
+            <el-option label="土壤监测站" value="soil_monitoring" />
+            <el-option label="畜牧监测设备" value="livestock_monitor" />
+            <el-option label="水产养殖监测" value="aquaculture" />
+            <el-option label="仓储监测设备" value="storage_facility" />
+            <el-option label="无人机传感器" value="drone_sensor" />
+            <el-option label="智能灌溉控制器" value="irrigation_control" />
           </el-select>
         </el-form-item>
         

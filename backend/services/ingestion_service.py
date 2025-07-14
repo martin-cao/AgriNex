@@ -4,7 +4,7 @@ import logging
 import base64
 import hashlib
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from models.reading import Reading
@@ -485,6 +485,79 @@ class IngestionService:
             logger.error("单传感器数据处理失败: %s", e)
             db.session.rollback()
             return None
+    
+    def ingest_aggregated_mqtt_message(self, topic: str, payload: Dict[str, Any]) -> List[Reading]:
+        """处理包含多个传感器数据的MQTT消息"""
+        readings = []
+        try:
+            # 解析主题获取基本信息
+            topic_info = self._parse_topic(topic)
+            logger.info(f"解析聚合数据主题: {topic} -> {topic_info}")
+            if not topic_info:
+                logger.error(f"无效的主题格式: {topic}")
+                return readings
+            
+            client_id = topic_info['client_id']
+            data_type = topic_info['data_type']  # 应该是 'numeric'
+            
+            # 查找对应的设备
+            from models.device import Device
+            device = Device.query.filter_by(
+                client_id=client_id,
+                is_active=True
+            ).first()
+            
+            if not device:
+                logger.warning("未找到启用的设备: client_id=%s", client_id)
+                return readings
+            
+            # 定义传感器类型映射（从payload字段名到传感器类型）
+            sensor_type_mapping = {
+                'temperature': 'temperature',
+                'humidity': 'humidity', 
+                'light': 'light',
+                'ph': 'soil_ph',
+                'moisture': 'soil_moisture',
+                'pressure': 'pressure',
+                'wind_speed': 'wind_speed'
+            }
+            
+            # 为每个传感器数据创建读数
+            for field_name, value in payload.items():
+                if field_name in sensor_type_mapping and isinstance(value, (int, float)):
+                    sensor_type = sensor_type_mapping[field_name]
+                    
+                    # 查找对应的传感器
+                    sensor = Sensor.query.filter_by(
+                        device_id=device.id,
+                        type=sensor_type
+                    ).first()
+                    
+                    if sensor:
+                        # 创建读数
+                        reading_payload = {
+                            'value': value,
+                            'timestamp': payload.get('timestamp')
+                        }
+                        reading = self._process_single_sensor_data(sensor, reading_payload)
+                        if reading:
+                            readings.append(reading)
+                            logger.info("创建传感器读数: %s = %s %s", sensor.name, value, sensor.unit)
+                    else:
+                        logger.warning("未找到传感器: device_id=%s, sensor_type=%s", device.id, sensor_type)
+            
+            if readings:
+                db.session.commit()
+                logger.info("聚合数据处理完成: %d 条读数", len(readings))
+            
+            return readings
+                
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            logger.error("聚合MQTT消息处理失败: %s", str(e))
+            logger.error("完整错误信息: %s", traceback.format_exc())
+            return readings
     
     @staticmethod
     def get_latest_reading(device_id):

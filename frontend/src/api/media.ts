@@ -45,13 +45,13 @@ export const mediaApi = {
 
   // 获取媒体文件详情
   getMediaFile: async (mediaId: number): Promise<ApiResponse<MediaFile>> => {
-    const response = await api.get(`/media/${mediaId}/`);
+    const response = await api.get(`/media/${mediaId}`);
     return response.data;
   },
 
   // 上传媒体文件
   uploadMediaFile: async (formData: FormData): Promise<ApiResponse<MediaFile>> => {
-    const response = await api.post('/media/upload/', formData, {
+    const response = await api.post('/media/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -61,7 +61,7 @@ export const mediaApi = {
 
   // 删除媒体文件
   deleteMediaFile: async (mediaId: number): Promise<ApiResponse<{}>> => {
-    const response = await api.delete(`/media/${mediaId}/`);
+    const response = await api.delete(`/media/${mediaId}`);
     return response.data;
   },
 

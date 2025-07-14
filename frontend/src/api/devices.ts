@@ -5,37 +5,37 @@ import type { Device, Sensor, Reading, MediaReading, ApiResponse } from '../type
 export const devicesApi = {
   // 获取设备列表
   getDevices: async (): Promise<ApiResponse<Device[]>> => {
-    const response = await api.get('/devices/');
+    const response = await api.get('/devices');
     return response.data;
   },
 
   // 获取设备详情
   getDevice: async (deviceId: number): Promise<ApiResponse<Device>> => {
-    const response = await api.get(`/devices/${deviceId}/`);
+    const response = await api.get(`/devices/${deviceId}`);
     return response.data;
   },
 
   // 创建设备
   createDevice: async (device: Omit<Device, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Device>> => {
-    const response = await api.post('/devices/', device);
+    const response = await api.post('/devices', device);
     return response.data;
   },
 
   // 更新设备
   updateDevice: async (deviceId: number, device: Partial<Device>): Promise<ApiResponse<Device>> => {
-    const response = await api.put(`/devices/${deviceId}/`, device);
+    const response = await api.put(`/devices/${deviceId}`, device);
     return response.data;
   },
 
   // 删除设备
   deleteDevice: async (deviceId: number): Promise<ApiResponse<{}>> => {
-    const response = await api.delete(`/devices/${deviceId}/`);
+    const response = await api.delete(`/devices/${deviceId}`);
     return response.data;
   },
 
   // 获取设备传感器列表
   getDeviceSensors: async (deviceId: number): Promise<ApiResponse<Sensor[]>> => {
-    const response = await api.get(`/devices/${deviceId}/sensors/`);
+    const response = await api.get(`/devices/${deviceId}/sensors`);
     return response.data;
   },
 

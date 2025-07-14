@@ -136,10 +136,21 @@ def register():
             new_user = User.create(username=username, password=password, role=role)
             db.session.commit()
             
-            logger.info("New user registered: %s", username)
+            # 自动登录新注册的用户
+            access_token = create_access_token(
+                identity=str(new_user.id),
+                additional_claims={
+                    "username": new_user.username,
+                    "role": new_user.role
+                }
+            )
+            refresh_token = create_refresh_token(identity=str(new_user.id))
+            
+            logger.info("New user registered and logged in: %s", username)
             
             return jsonify({
-                "message": "User registered successfully",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
                 "user": new_user.to_dict()
             }), 201
             

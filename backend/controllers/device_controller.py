@@ -27,9 +27,11 @@ logger = logging.getLogger(__name__)
 @device_bp.route('', methods=['GET'])
 @device_bp.route('/', methods=['GET'])
 def get_devices():
-    """获取所有设备"""
+    """获取所有设备（排除已删除的设备）"""
     try:
-        devices = Device.query.all()
+        # 只查询状态不为 'deleted' 的设备 - 获取所有设备然后过滤
+        all_devices = Device.query.all()
+        devices = [device for device in all_devices if device.status != 'deleted']
         device_list = [device.to_dict() for device in devices]  # 使用模型的to_dict方法
         
         return jsonify({

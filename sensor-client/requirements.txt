@@ -12,8 +12,8 @@ aiohttp>=3.8.0
 numpy>=1.21.0
 
 # Optional dependencies (for extended features)
-# opencv-python>=4.5.0  # Uncomment if camera support needed
-# Pillow>=8.3.0        # Uncomment if image processing needed
+opencv-python>=4.5.0  # Camera support for image/video capture
+Pillow>=8.3.0        # Image processing
 
 # Development and testing
 pytest>=6.0.0

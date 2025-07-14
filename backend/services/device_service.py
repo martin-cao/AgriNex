@@ -18,10 +18,14 @@ class DeviceService:
     
     @staticmethod
     def get_all_devices(status: Optional[str] = None) -> List[Device]:
-        """获取所有设备"""
+        """获取所有设备（默认排除已删除的设备）"""
         query = Device.query
         if status:
             query = query.filter_by(status=status)
+        else:
+            # 默认排除已删除的设备
+            all_devices = Device.query.all()
+            return [device for device in all_devices if device.status != 'deleted']
         return query.all()
     
     @staticmethod

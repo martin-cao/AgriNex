@@ -24,6 +24,18 @@
     "quality_checks": true,
     "mock_data_generation": true
   },
+  "camera": {
+    "enabled": true,
+    "device_id": 0,
+    "resolution": [640, 480],
+    "fps": 30,
+    "format": "jpg",
+    "quality": 95,
+    "auto_capture_interval": 60.0,
+    "simulation_mode": true,
+    "save_local": false,
+    "upload_to_storage": true
+  },
   "logging": {
     "level": "INFO",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",

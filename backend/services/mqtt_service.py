@@ -160,27 +160,52 @@ class MQTTService:
             # 使用应用上下文
             if self.app:
                 with self.app.app_context():
-                    reading = self.ingestion_service.ingest_mqtt_message(topic, payload)
-                    if reading:
-                        logger.info("传感器数据存储成功: ID=%s", reading.id)
-                        
-                        # 检查告警条件（仅对数值型数据）
-                        if reading.data_type == 'numeric' and reading.numeric_value is not None:
-                            try:
-                                triggered_alarms = alarm_monitor.check_reading_immediately(
-                                    sensor_id=reading.sensor_id,
-                                    value=reading.numeric_value,
-                                    timestamp=reading.timestamp
-                                )
-                                
-                                if triggered_alarms:
-                                    logger.info(f"Triggered {len(triggered_alarms)} alarms for sensor {reading.sensor_id}")
-                                    
-                            except Exception as e:
-                                logger.error(f"Error checking alarms for reading {reading.id}: {e}")
-                        
+                    # 检查是否是聚合数据格式（包含多个传感器类型）
+                    if self._is_aggregated_data(payload):
+                        readings = self.ingestion_service.ingest_aggregated_mqtt_message(topic, payload)
+                        if readings:
+                            logger.info("聚合传感器数据存储成功: %d 条记录", len(readings))
+                            
+                            # 为每个读数检查告警条件
+                            for reading in readings:
+                                if reading.data_type == 'numeric' and reading.numeric_value is not None:
+                                    try:
+                                        triggered_alarms = alarm_monitor.check_reading_immediately(
+                                            sensor_id=reading.sensor_id,
+                                            value=reading.numeric_value,
+                                            timestamp=reading.timestamp
+                                        )
+                                        
+                                        if triggered_alarms:
+                                            logger.info(f"Triggered {len(triggered_alarms)} alarms for sensor {reading.sensor_id}")
+                                            
+                                    except Exception as e:
+                                        logger.error(f"Error checking alarms for reading {reading.id}: {e}")
+                        else:
+                            logger.warning("聚合传感器数据存储失败")
                     else:
-                        logger.warning("传感器数据存储失败")
+                        # 处理单一传感器数据
+                        reading = self.ingestion_service.ingest_mqtt_message(topic, payload)
+                        if reading:
+                            logger.info("传感器数据存储成功: ID=%s", reading.id)
+                            
+                            # 检查告警条件（仅对数值型数据）
+                            if reading.data_type == 'numeric' and reading.numeric_value is not None:
+                                try:
+                                    triggered_alarms = alarm_monitor.check_reading_immediately(
+                                        sensor_id=reading.sensor_id,
+                                        value=reading.numeric_value,
+                                        timestamp=reading.timestamp
+                                    )
+                                    
+                                    if triggered_alarms:
+                                        logger.info(f"Triggered {len(triggered_alarms)} alarms for sensor {reading.sensor_id}")
+                                        
+                                except Exception as e:
+                                    logger.error(f"Error checking alarms for reading {reading.id}: {e}")
+                            
+                        else:
+                            logger.warning("传感器数据存储失败")
             else:
                 logger.error("应用上下文不可用")
                     
@@ -273,6 +298,13 @@ class MQTTService:
             'running': self.running,
             'config': self.mqtt_config
         }
+    
+    def _is_aggregated_data(self, payload: Dict[str, Any]) -> bool:
+        """判断是否为聚合数据格式（包含多个传感器类型的数据）"""
+        # 如果payload直接包含多个已知的传感器类型字段，则认为是聚合数据
+        sensor_fields = ['temperature', 'humidity', 'light', 'ph', 'moisture', 'pressure', 'wind_speed']
+        sensor_count = sum(1 for field in sensor_fields if field in payload)
+        return sensor_count > 1
 
 
 # 全局MQTT服务实例

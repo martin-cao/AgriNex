@@ -1,0 +1,32 @@
+{
+  "client_id": "camera_001",
+  "mqtt": {
+    "host": "localhost",
+    "port": 1883,
+    "username": null,
+    "password": null,
+    "keepalive": 60,
+    "qos": 1,
+    "retain": false
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_path": "logs/camera_client.log",
+    "max_file_size": 10485760,
+    "backup_count": 5
+  },
+  "debug": false,
+  "simulation_mode": true,
+  "capture_type": "image",
+  "capture_interval": 60,
+  "auto_capture": true,
+  "camera_index": 0,
+  "capture_width": 640,
+  "capture_height": 480,
+  "capture_fps": 30,
+  "image_quality": 85,
+  "video_duration": 10,
+  "video_codec": "mp4v",
+  "location": "greenhouse_001"
+}

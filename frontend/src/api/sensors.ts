@@ -1,35 +1,35 @@
 // api/sensors.ts
-import api from './client';
-import type { Sensor, Reading, MediaReading, ApiResponse } from '../types';
+import { http } from './http';
+import type { Sensor, Reading, ApiResponse, PaginatedResponse } from '@/types';
 
 export const sensorsApi = {
   // 获取传感器列表
   getSensors: async (): Promise<ApiResponse<Sensor[]>> => {
-    const response = await api.get('/sensors');
+    const response = await http.get('/api/sensors');
     return response.data;
   },
 
   // 获取传感器详情
   getSensor: async (sensorId: number): Promise<ApiResponse<Sensor>> => {
-    const response = await api.get(`/sensors/${sensorId}`);
+    const response = await http.get(`/api/sensors/${sensorId}`);
     return response.data;
   },
 
   // 创建传感器
   createSensor: async (sensor: Omit<Sensor, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Sensor>> => {
-    const response = await api.post('/sensors', sensor);
+    const response = await http.post('/api/sensors', sensor);
     return response.data;
   },
 
   // 更新传感器
   updateSensor: async (sensorId: number, sensor: Partial<Sensor>): Promise<ApiResponse<Sensor>> => {
-    const response = await api.put(`/sensors/${sensorId}`, sensor);
+    const response = await http.put(`/api/sensors/${sensorId}`, sensor);
     return response.data;
   },
 
   // 删除传感器
   deleteSensor: async (sensorId: number): Promise<ApiResponse<{}>> => {
-    const response = await api.delete(`/sensors/${sensorId}`);
+    const response = await http.delete(`/api/sensors/${sensorId}`);
     return response.data;
   },
 
@@ -43,7 +43,7 @@ export const sensorsApi = {
       page?: number;
     }
   ): Promise<ApiResponse<Reading[]>> => {
-    const response = await api.get(`/sensors/${sensorId}/readings`, { params });
+    const response = await http.get(`/api/sensors/${sensorId}/readings`, { params });
     return response.data;
   },
 
@@ -52,13 +52,13 @@ export const sensorsApi = {
     sensorId: number, 
     reading: { value: number; timestamp?: string }
   ): Promise<ApiResponse<Reading>> => {
-    const response = await api.post(`/sensors/${sensorId}/readings`, reading);
+    const response = await http.post(`/api/sensors/${sensorId}/readings`, reading);
     return response.data;
   },
 
   // 获取传感器最新读数
   getSensorLatest: async (sensorId: number): Promise<ApiResponse<Reading>> => {
-    const response = await api.get(`/sensors/${sensorId}/readings/latest`);
+    const response = await http.get(`/api/sensors/${sensorId}/readings/latest`);
     return response.data;
   },
 
@@ -76,7 +76,7 @@ export const sensorsApi = {
     max: number;
     std: number;
   }>> => {
-    const response = await api.get(`/sensors/${sensorId}/statistics`, { params });
+    const response = await http.get(`/api/sensors/${sensorId}/statistics`, { params });
     return response.data;
   }
 };

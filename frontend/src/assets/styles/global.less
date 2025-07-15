@@ -1,0 +1,201 @@
+/* AgriNex 全局样式 */
+@import './variables.less';
+
+/* 重置一些默认样式 */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+
+#app {
+  height: 100%;
+}
+
+/* 布局相关 */
+.main-layout {
+  height: 100vh;
+
+  .layout-sider {
+    box-shadow: 2px 0 6px rgba(0, 21, 41, 0.35);
+    
+    .logo {
+      height: @layout-header-height;
+      display: flex;
+      align-items: center;
+      padding: 0 @spacing-md;
+      border-bottom: 1px solid @border-color-base;
+      
+      img {
+        height: 32px;
+        width: 32px;
+        margin-right: @spacing-sm;
+      }
+      
+      span {
+        font-size: 18px;
+        font-weight: 600;
+        color: @primary-color;
+      }
+    }
+  }
+
+  .layout-header {
+    background: #fff;
+    padding: 0 @spacing-md;
+    border-bottom: 1px solid @border-color-base;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: @spacing-md;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: @spacing-sm;
+    }
+  }
+
+  .layout-content {
+    padding: @spacing-lg;
+    background: #f5f5f5;
+    overflow-y: auto;
+  }
+}
+
+/* 卡片样式 */
+.statistic-card {
+  .ant-statistic-title {
+    color: @text-color-secondary;
+    font-size: 14px;
+    margin-bottom: @spacing-xs;
+  }
+
+  .ant-statistic-content {
+    color: @text-color-primary;
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  .trend {
+    margin-top: @spacing-sm;
+    
+    .trend-text {
+      font-size: 12px;
+      
+      &.up {
+        color: @success-color;
+      }
+      
+      &.down {
+        color: @error-color;
+      }
+    }
+  }
+}
+
+.device-card {
+  margin-bottom: @spacing-md;
+  
+  .device-title {
+    display: flex;
+    align-items: center;
+    gap: @spacing-sm;
+    
+    .device-info {
+      h4 {
+        margin: 0;
+        font-size: 16px;
+        color: @text-color-primary;
+      }
+      
+      span {
+        font-size: 12px;
+        color: @text-color-secondary;
+      }
+    }
+  }
+
+  .device-stats {
+    margin: @spacing-md 0;
+  }
+
+  .device-actions {
+    margin-top: @spacing-md;
+  }
+}
+
+/* 图表容器 */
+.chart-container {
+  background: #fff;
+  border-radius: @border-radius-base;
+  padding: @spacing-lg;
+  box-shadow: @box-shadow-sm;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: @spacing-lg;
+  
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    color: @text-color-primary;
+  }
+  
+  .page-description {
+    margin-top: @spacing-xs;
+    color: @text-color-secondary;
+  }
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .main-layout {
+    .layout-content {
+      padding: @spacing-md;
+    }
+  }
+  
+  .device-card {
+    .device-stats {
+      .ant-col {
+        margin-bottom: @spacing-sm;
+      }
+    }
+  }
+}
+
+/* 动画效果 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-leave-to {
+  transform: translateX(100%);
+}

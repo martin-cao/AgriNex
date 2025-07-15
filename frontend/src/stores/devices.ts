@@ -1,7 +1,7 @@
 // stores/devices.ts
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { devicesApi } from '../api';
+import { deviceApi } from '../api';
 import type { Device, Sensor } from '../types';
 
 export const useDevicesStore = defineStore('devices', () => {
@@ -13,7 +13,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const fetchDevices = async () => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.getDevices();
+      const response = await deviceApi.getDevices();
       if (response.success && response.data) {
         devices.value = response.data;
       }
@@ -27,7 +27,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const fetchDevice = async (deviceId: number) => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.getDevice(deviceId);
+      const response = await deviceApi.getDevice(deviceId);
       if (response.success && response.data) {
         currentDevice.value = response.data;
         return response.data;
@@ -42,7 +42,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const createDevice = async (device: Omit<Device, 'id' | 'created_at' | 'updated_at'>) => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.createDevice(device);
+      const response = await deviceApi.createDevice(device);
       if (response.success && response.data) {
         devices.value.push(response.data);
         return response.data;
@@ -58,7 +58,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const updateDevice = async (deviceId: number, device: Partial<Device>) => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.updateDevice(deviceId, device);
+      const response = await deviceApi.updateDevice(deviceId, device);
       if (response.success && response.data) {
         const index = devices.value.findIndex(d => d.id === deviceId);
         if (index !== -1) {
@@ -80,7 +80,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const deleteDevice = async (deviceId: number) => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.deleteDevice(deviceId);
+      const response = await deviceApi.deleteDevice(deviceId);
       if (response.success) {
         devices.value = devices.value.filter(d => d.id !== deviceId);
         if (currentDevice.value?.id === deviceId) {
@@ -98,7 +98,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const fetchDeviceSensors = async (deviceId: number) => {
     isLoading.value = true;
     try {
-      const response = await devicesApi.getDeviceSensors(deviceId);
+      const response = await deviceApi.getDeviceSensors(deviceId);
       if (response.success && response.data) {
         deviceSensors.value = response.data;
         return response.data;

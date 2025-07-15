@@ -1,5 +1,5 @@
 // api/deviceTemplates.ts
-import api from './client';
+import { http } from './http';
 import type { ApiResponse } from '../types';
 
 export interface DeviceTemplate {
@@ -28,55 +28,48 @@ export interface SensorConfig {
 
 export const deviceTemplatesApi = {
   // 获取设备模板列表
-  getDeviceTemplates: async (): Promise<ApiResponse<DeviceTemplate[]>> => {
-    const response = await api.get('/device-templates/');
-    return response.data;
+  getDeviceTemplates: (): Promise<ApiResponse<DeviceTemplate[]>> => {
+    return http.get('/api/device-templates');
   },
 
   // 获取设备模板详情
-  getDeviceTemplate: async (deviceType: string): Promise<ApiResponse<DeviceTemplate>> => {
-    const response = await api.get(`/device-templates/${deviceType}`);
-    return response.data;
+  getDeviceTemplate: (deviceType: string): Promise<ApiResponse<DeviceTemplate>> => {
+    return http.get(`/api/device-templates/${deviceType}`);
   },
 
   // 创建设备模板
-  createDeviceTemplate: async (template: Omit<DeviceTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<DeviceTemplate>> => {
-    const response = await api.post('/device-templates/', template);
-    return response.data;
+  createDeviceTemplate: (template: Omit<DeviceTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<DeviceTemplate>> => {
+    return http.post('/api/device-templates', template);
   },
 
   // 更新设备模板
-  updateDeviceTemplate: async (deviceType: string, template: Partial<DeviceTemplate>): Promise<ApiResponse<DeviceTemplate>> => {
-    const response = await api.put(`/device-templates/${deviceType}`, template);
-    return response.data;
+  updateDeviceTemplate: (deviceType: string, template: Partial<DeviceTemplate>): Promise<ApiResponse<DeviceTemplate>> => {
+    return http.put(`/api/device-templates/${deviceType}`, template);
   },
 
   // 删除设备模板
-  deleteDeviceTemplate: async (deviceType: string): Promise<ApiResponse<{}>> => {
-    const response = await api.delete(`/device-templates/${deviceType}`);
-    return response.data;
+  deleteDeviceTemplate: (deviceType: string): Promise<ApiResponse<{}>> => {
+    return http.delete(`/api/device-templates/${deviceType}`);
   },
 
   // 获取模板传感器配置
-  getTemplateSensors: async (deviceType: string): Promise<ApiResponse<{
+  getTemplateSensors: (deviceType: string): Promise<ApiResponse<{
     data: SensorConfig[];
     total: number;
     required_sensors: number;
   }>> => {
-    const response = await api.get(`/device-templates/${deviceType}/sensors`);
-    return response.data;
+    return http.get(`/api/device-templates/${deviceType}/sensors`);
   },
 
   // 验证传感器类型
-  validateSensorType: async (deviceType: string, sensorType: string): Promise<ApiResponse<{
+  validateSensorType: (deviceType: string, sensorType: string): Promise<ApiResponse<{
     valid: boolean;
     sensor_config?: SensorConfig;
     allowed_types?: string[];
     message: string;
   }>> => {
-    const response = await api.post(`/device-templates/${deviceType}/validate`, {
+    return http.post(`/api/device-templates/${deviceType}/validate`, {
       sensor_type: sensorType
     });
-    return response.data;
   }
 };

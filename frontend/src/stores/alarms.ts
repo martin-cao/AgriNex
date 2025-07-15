@@ -1,7 +1,7 @@
 // stores/alarms.ts
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { alarmsApi } from '../api';
+import { alarmApi } from '../api';
 import type { Alarm } from '../types';
 
 export const useAlarmsStore = defineStore('alarms', () => {
@@ -11,7 +11,7 @@ export const useAlarmsStore = defineStore('alarms', () => {
   const fetchAlarms = async (params?: { status?: string; limit?: number; offset?: number }) => {
     isLoading.value = true;
     try {
-      const response = await alarmsApi.getAlarms(params);
+      const response = await alarmApi.getAlarms(params);
       if (response.success && response.data) {
         alarms.value = response.data;
       }
@@ -24,7 +24,7 @@ export const useAlarmsStore = defineStore('alarms', () => {
 
   const resolveAlarm = async (alarmId: number) => {
     try {
-      const response = await alarmsApi.resolveAlarm(alarmId);
+      const response = await alarmApi.resolveAlarm(alarmId);
       if (response.success && response.data) {
         const index = alarms.value.findIndex(a => a.id === alarmId);
         if (index !== -1) {

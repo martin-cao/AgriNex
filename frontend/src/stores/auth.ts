@@ -1,7 +1,7 @@
 // stores/auth.ts
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { authApi } from '../api';
+import { userApi } from '../api';
 import type { User, LoginForm, RegisterForm } from '../types';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -16,16 +16,15 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (loginForm: LoginForm) => {
     isLoading.value = true;
     try {
-      const response = await authApi.login(loginForm);
+      const response = await userApi.login(loginForm.username, loginForm.password);
       console.log('登录响应:', response);
-      console.log('响应数据:', response.data);
       
-      // 后端直接返回数据，不包装在ApiResponse中
-      if (response.data && response.data.access_token) {
-        token.value = response.data.access_token;
-        user.value = response.data.user;
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      // http拦截器已经返回了response.data，所以直接访问字段
+      if (response && response.access_token) {
+        token.value = response.access_token;
+        user.value = response.user;
+        localStorage.setItem('token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(response.user));
         console.log('登录成功，token和用户信息已保存');
         console.log('设置的用户信息:', user.value);
         console.log('设置的token:', token.value);
@@ -44,16 +43,9 @@ export const useAuthStore = defineStore('auth', () => {
   const register = async (registerForm: Omit<RegisterForm, 'confirmPassword'>) => {
     isLoading.value = true;
     try {
-      const response = await authApi.register(registerForm);
-      // 后端直接返回数据，不包装在ApiResponse中
-      if (response.data && response.data.access_token) {
-        token.value = response.data.access_token;
-        user.value = response.data.user;
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        return response;
-      }
-      throw new Error('注册失败：无效的响应格式');
+      const response = await userApi.register(registerForm);
+      // 注册成功，返回响应
+      return response;
     } catch (error) {
       throw error;
     } finally {
@@ -63,7 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const logout = async () => {
     try {
-      await authApi.logout();
+      await userApi.logout();
     } catch (error) {
       // 忽略登出错误
     }
@@ -77,7 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return;
     
     try {
-      const response = await authApi.getProfile();
+      const response = await userApi.getCurrentUser();
       if (response.success && response.data) {
         user.value = response.data;
         localStorage.setItem('user', JSON.stringify(response.data));

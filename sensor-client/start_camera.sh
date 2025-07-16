@@ -124,7 +124,7 @@ echo "Starting camera sensor client with arguments: $ARGS"
 echo "Press Ctrl+C to stop..."
 echo ""
 
-python3 camera_main.py $ARGS
+exec python3 camera_main.py "$ARGS"
 
 echo ""
 echo "Camera sensor client stopped."

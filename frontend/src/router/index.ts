@@ -15,6 +15,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: false, title: '登录' }
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/auth/Register.vue'),
+    meta: { requiresAuth: false, title: '注册' }
+  },
+  {
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('../views/dashboard/Index.vue'),
@@ -91,8 +97,8 @@ router.beforeEach((to, from, next) => {
     return;
   }
   
-  // 如果已经登录，不允许访问登录页
-  if (to.path === '/login' && authStore.isAuthenticated) {
+  // 如果已经登录，不允许访问登录页和注册页
+  if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
     next('/dashboard');
     return;
   }

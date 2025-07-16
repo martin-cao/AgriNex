@@ -73,14 +73,15 @@
 
     <!-- 设备列表 - 卡片模式 -->
     <div v-if="viewMode === 'card'" class="devices-grid">
-      <a-row :gutter="[16, 16]">
+      <a-row :gutter="[24, 24]">
         <a-col 
           v-for="device in filteredDevices" 
           :key="device.id"
           :xs="24" 
           :sm="12" 
+          :md="8" 
           :lg="8" 
-          :xl="6"
+          :xl="8"
         >
           <DeviceCard
             :device="device"
@@ -425,7 +426,26 @@ const fetchDevices = async () => {
     
     // 适配后端API响应格式: { data: [...], success: true, total: 6 }
     if (response.success && response.data) {
-      devices.value = response.data;
+      // 为每个设备获取真实的传感器数量
+      const devicesWithSensors = await Promise.all(
+        response.data.map(async (device: any) => {
+          try {
+            // 获取设备的传感器数量
+            const sensorsResponse = await fetch(`/api/devices/${device.id}/sensors`);
+            const sensorsData = await sensorsResponse.json();
+            
+            return {
+              ...device,
+              sensor_count: sensorsData.success ? sensorsData.data.length : 0
+            };
+          } catch (error) {
+            console.warn(`获取设备 ${device.id} 传感器失败:`, error);
+            return { ...device, sensor_count: 0 };
+          }
+        })
+      );
+      
+      devices.value = devicesWithSensors;
       pagination.total = (response as any).total || response.data.length;
     } else {
       devices.value = [];

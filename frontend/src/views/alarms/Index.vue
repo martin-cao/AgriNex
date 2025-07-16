@@ -1904,12 +1904,12 @@ onMounted(() => {
         h1 {
           margin: 0;
           font-size: 24px;
-          color: #262626;
+          color: var(--agrinex-text-primary);
         }
         
         .page-description {
           margin: 4px 0 0 0;
-          color: #8c8c8c;
+          color: var(--agrinex-text-tertiary);
         }
       }
       

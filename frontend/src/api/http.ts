@@ -31,13 +31,24 @@ http.interceptors.response.use(
   (response: AxiosResponse) => {
     const { data } = response;
     
-    // 如果返回的数据表示成功，直接返回数据
-    if (data.success || data.code === 200 || response.status === 200) {
+    console.log('HTTP响应拦截器 - 原始响应:', response);
+    console.log('HTTP响应拦截器 - 响应数据:', data);
+    
+    // 如果响应状态码是 2xx，通常都认为是成功的
+    if (response.status >= 200 && response.status < 300) {
+      // 如果数据中有 success 字段且为 false，表示业务失败
+      if (data.hasOwnProperty('success') && data.success === false) {
+        const errorMessage = data.message || '业务处理失败';
+        message.error(errorMessage);
+        return Promise.reject(new Error(errorMessage));
+      }
+      
+      // 返回响应数据
       return response.data;
     }
     
-    // 处理业务错误
-    const errorMessage = data.message || '请求失败';
+    // 处理其他状态码
+    const errorMessage = data?.message || '请求失败';
     message.error(errorMessage);
     return Promise.reject(new Error(errorMessage));
   },

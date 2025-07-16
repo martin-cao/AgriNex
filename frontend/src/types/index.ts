@@ -236,6 +236,7 @@ export interface RegisterForm {
   confirmPassword: string;
   full_name?: string;
   phone?: string;
+  agreement?: boolean;
 }
 
 // 读数类型（传感器数据的别名）

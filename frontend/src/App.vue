@@ -1,27 +1,36 @@
 <template>
-  <div id="app">
-    <!-- 如果用户未登录，显示登录页面 -->
-    <div v-if="!authStore.isAuthenticated" class="login-container">
-      <router-view />
+  <a-config-provider :theme="themeStore.antdThemeConfig">
+    <div id="app" :class="{ 'theme-transition': true }">
+      <!-- 如果用户未登录，显示登录页面 -->
+      <div v-if="!authStore.isAuthenticated" class="login-container">
+        <router-view />
+      </div>
+      
+      <!-- 如果用户已登录，显示主布局 -->
+      <MainLayout v-else />
     </div>
-    
-    <!-- 如果用户已登录，显示主布局 -->
-    <MainLayout v-else />
-  </div>
+  </a-config-provider>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
 import MainLayout from '@/components/layout/MainLayout.vue';
 
 const route = useRoute();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 // 当前激活的菜单项
 const activeMenu = computed(() => {
   return route.path;
+});
+
+// 初始化主题
+onMounted(() => {
+  themeStore.initializeTheme();
 });
 </script>
 

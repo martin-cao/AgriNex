@@ -5,7 +5,7 @@
       v-model:collapsed="collapsed"
       :width="240"
       class="layout-sider"
-      theme="light"
+      :theme="themeStore.isDark ? 'dark' : 'light'"
       collapsible
     >
       <div class="logo">
@@ -83,6 +83,9 @@
 
         <div class="header-right">
           <a-space>
+            <!-- 主题切换 -->
+            <ThemeSwitcher :show-text="false" />
+            
             <!-- 通知 -->
             <a-badge :count="notificationCount" :offset="[10, 0]">
               <a-button type="text" @click="showNotifications">
@@ -139,11 +142,14 @@
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
 import { message } from 'ant-design-vue';
+import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 // 响应式数据
 const collapsed = ref(false);

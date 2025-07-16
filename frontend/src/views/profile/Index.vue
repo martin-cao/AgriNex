@@ -244,11 +244,19 @@
                 </a-form-item>
 
                 <a-form-item label="主题设置">
-                  <a-radio-group v-model:value="preferences.theme">
-                    <a-radio value="light">浅色主题</a-radio>
-                    <a-radio value="dark">深色主题</a-radio>
-                    <a-radio value="auto">跟随系统</a-radio>
-                  </a-radio-group>
+                  <div class="theme-setting-section">
+                    <ThemeSwitcher :detailed="true" />
+                    
+                    <div class="theme-info" v-if="themeStore.mode === 'auto'">
+                      <a-alert
+                        message="自动模式已启用"
+                        :description="`主题将跟随您的系统设置自动切换。当前系统偏好: ${themeStore.systemDark ? '暗色' : '亮色'}模式`"
+                        type="info"
+                        show-icon
+                        banner
+                      />
+                    </div>
+                  </div>
                 </a-form-item>
 
                 <a-form-item label="通知设置">
@@ -335,10 +343,13 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { message } from 'ant-design-vue';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
 import { userApi } from '@/api/user';
+import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue';
 import dayjs from 'dayjs';
 
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 // 响应式数据
 const activeTab = ref('basic');
@@ -638,12 +649,12 @@ onMounted(() => {
     h1 {
       margin: 0;
       font-size: 24px;
-      color: #262626;
+      color: var(--agrinex-text-primary);
     }
     
     .page-description {
       margin: 4px 0 0 0;
-      color: #8c8c8c;
+      color: var(--agrinex-text-tertiary);
     }
   }
 
@@ -663,12 +674,12 @@ onMounted(() => {
         h3 {
           margin: 0 0 4px 0;
           font-size: 18px;
-          color: #262626;
+          color: var(--agrinex-text-primary);
         }
 
         p {
           margin: 0 0 8px 0;
-          color: #8c8c8c;
+          color: var(--agrinex-text-tertiary);
         }
       }
     }
@@ -727,6 +738,13 @@ onMounted(() => {
       white-space: nowrap;
       margin-left: 16px;
     }
+  }
+}
+
+// 主题设置样式
+.theme-setting-section {
+  .theme-info {
+    margin-top: 16px;
   }
 }
 

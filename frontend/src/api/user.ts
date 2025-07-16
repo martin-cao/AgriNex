@@ -22,6 +22,7 @@ export const userApi = {
     phone?: string;
     full_name?: string;
   }): Promise<ApiResponse<User>> => {
+    console.log('发送注册请求:', data);
     return http.post('/api/auth/register', data);
   },
 

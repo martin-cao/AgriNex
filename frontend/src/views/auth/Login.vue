@@ -58,24 +58,8 @@
         </a-form>
 
         <div class="login-footer">
-          <a-divider>
-            <span style="color: #ccc; font-size: 12px;">其他登录方式</span>
-          </a-divider>
-          
-          <div class="social-login">
-            <a-button type="text" size="large">
-              <github-outlined />
-            </a-button>
-            <a-button type="text" size="large">
-              <wechat-outlined />
-            </a-button>
-            <a-button type="text" size="large">
-              <qq-outlined />
-            </a-button>
-          </div>
-          
           <p class="register-link">
-            还没有账号？ <a href="#" @click="showRegister">立即注册</a>
+            还没有账号？ <router-link to="/register" class="link">立即注册</router-link>
           </p>
         </div>
       </div>
@@ -97,10 +81,7 @@ import { message } from 'ant-design-vue';
 import { useAuthStore } from '@/stores/auth';
 import {
   UserOutlined,
-  LockOutlined,
-  GithubOutlined,
-  WechatOutlined,
-  QqOutlined
+  LockOutlined
 } from '@ant-design/icons-vue';
 
 const router = useRouter();
@@ -146,17 +127,13 @@ const handleLogin = async () => {
     loading.value = false;
   }
 };
-
-const showRegister = () => {
-  message.info('注册功能暂未开放，请联系管理员');
-};
 </script>
 
 <style lang="less" scoped>
 .login-page {
   position: relative;
   height: 100vh;
-  background: linear-gradient(135deg, #f0f9f0 0%, #e6f7e6 100%);
+  background: var(--agrinex-bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,10 +145,11 @@ const showRegister = () => {
     
     .login-card {
       width: 400px;
-      background: rgba(255, 255, 255, 0.95);
+      background: var(--agrinex-bg-card);
+      border: none;
       border-radius: 12px;
       padding: 40px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--agrinex-shadow-heavy);
       backdrop-filter: blur(10px);
 
       .login-header {
@@ -193,13 +171,13 @@ const showRegister = () => {
             margin: 0;
             font-size: 28px;
             font-weight: 600;
-            color: #52c41a;
+            color: var(--agrinex-primary);
           }
         }
 
         .subtitle {
           margin: 0;
-          color: #8c8c8c;
+          color: var(--agrinex-text-tertiary);
           font-size: 14px;
         }
       }
@@ -211,7 +189,7 @@ const showRegister = () => {
           align-items: center;
 
           .forgot-password {
-            color: #52c41a;
+            color: var(--agrinex-primary);
             text-decoration: none;
             font-size: 12px;
 
@@ -238,35 +216,13 @@ const showRegister = () => {
       .login-footer {
         margin-top: 24px;
 
-        .social-login {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
-          margin-bottom: 24px;
-
-          .ant-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #d9d9d9;
-
-            &:hover {
-              border-color: #52c41a;
-              color: #52c41a;
-            }
-          }
-        }
-
         .register-link {
           text-align: center;
           margin: 0;
           font-size: 12px;
-          color: #8c8c8c;
+          color: var(--agrinex-text-secondary);
 
-          a {
+          .link {
             color: #52c41a;
             text-decoration: none;
 
@@ -290,7 +246,7 @@ const showRegister = () => {
     .circle {
       position: absolute;
       border-radius: 50%;
-      background: rgba(82, 196, 26, 0.1);
+      background: rgba(82, 196, 26, 0.05);
       animation: float 6s ease-in-out infinite;
 
       &.circle-1 {

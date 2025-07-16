@@ -751,6 +751,8 @@ onMounted(async () => {
 <style scoped>
 .sensor-data-page {
   padding: 20px;
+  background: var(--agrinex-bg-primary);
+  min-height: 100vh;
 }
 
 .page-header {
@@ -762,7 +764,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .header-actions {
@@ -782,8 +784,9 @@ onMounted(async () => {
 .data-table-card,
 .statistics-card {
   border-radius: 10px;
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--agrinex-border-color-split);
+  box-shadow: var(--agrinex-shadow-light);
+  background: var(--agrinex-bg-card);
 }
 
 .card-header {
@@ -792,6 +795,7 @@ onMounted(async () => {
   align-items: center;
   font-weight: bold;
   font-size: 16px;
+  color: var(--agrinex-text-primary);
 }
 
 .info-item {
@@ -802,12 +806,12 @@ onMounted(async () => {
 
 .info-item .label {
   font-weight: 500;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   min-width: 80px;
 }
 
 .info-item .value {
-  color: #333;
+  color: var(--agrinex-text-primary);
   flex: 1;
 }
 
@@ -827,12 +831,12 @@ onMounted(async () => {
 .realtime-value .value {
   font-size: 48px;
   font-weight: bold;
-  color: #409EFF;
+  color: var(--agrinex-primary);
 }
 
 .realtime-value .unit {
   font-size: 18px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .realtime-info {
@@ -841,7 +845,7 @@ onMounted(async () => {
 
 .realtime-info .time {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-tertiary);
   margin-bottom: 10px;
 }
 
@@ -872,14 +876,14 @@ onMounted(async () => {
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   margin-bottom: 10px;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .no-sensor-selected {

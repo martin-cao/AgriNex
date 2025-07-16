@@ -10,3 +10,4 @@ export * from './devices';
 export * from './sensors';
 export * from './alarms';
 export * from './dashboard';
+export * from './theme';

@@ -103,12 +103,12 @@ export const useSensorsStore = defineStore('sensors', () => {
     try {
       const response = await sensorsApi.getSensorReadings(sensorId, params);
       if (response.success) {
-        // 处理分页响应
+        // 处理响应数据
         if (response.data) {
           sensorReadings.value = Array.isArray(response.data) ? response.data : [];
           return {
             data: sensorReadings.value,
-            pagination: response.pagination
+            pagination: null // 简化处理，暂不支持分页
           };
         }
       }

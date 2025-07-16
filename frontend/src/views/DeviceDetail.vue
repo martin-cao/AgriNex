@@ -447,7 +447,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .device-content {

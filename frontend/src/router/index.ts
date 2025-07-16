@@ -11,73 +11,73 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue'),
+    component: () => import('../views/auth/Login.vue'),
     meta: { requiresAuth: false, title: '登录' }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/auth/Register.vue'),
+    meta: { requiresAuth: false, title: '注册' }
   },
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('../views/Dashboard.vue'),
+    component: () => import('../views/dashboard/Index.vue'),
     meta: { requiresAuth: true, title: '仪表盘' }
   },
   {
     path: '/devices',
     name: 'Devices',
-    component: () => import('../views/Devices.vue'),
+    component: () => import('../views/devices/Index.vue'),
     meta: { requiresAuth: true, title: '设备管理' }
   },
   {
     path: '/devices/:id',
     name: 'DeviceDetail',
-    component: () => import('../views/DeviceDetail.vue'),
+    component: () => import('../views/devices/Detail.vue'),
     meta: { requiresAuth: true, title: '设备详情' }
   },
   {
     path: '/sensors',
     name: 'SensorData',
-    component: () => import('../views/SensorData.vue'),
+    component: () => import('../views/sensors/Index.vue'),
     meta: { requiresAuth: true, title: '传感器数据' }
   },
   {
     path: '/sensors/:id',
     name: 'SensorDetail',
-    component: () => import('../views/SensorDetail.vue'),
+    component: () => import('../views/sensors/Detail.vue'),
     meta: { requiresAuth: true, title: '传感器详情' }
   },
   {
     path: '/alarms',
     name: 'Alarms',
-    component: () => import('../views/Alarms.vue'),
+    component: () => import('../views/alarms/Index.vue'),
     meta: { requiresAuth: true, title: '告警管理' }
   },
   {
     path: '/predictions',
     name: 'Predictions',
-    component: () => import('../views/Predictions.vue'),
+    component: () => import('../views/predictions/Index.vue'),
     meta: { requiresAuth: true, title: '预测分析' }
   },
   {
-    path: '/media',
-    name: 'MediaGallery',
-    component: () => import('../views/MediaGallery.vue'),
-    meta: { requiresAuth: true, title: '媒体库' }
-  },
-  {
-    path: '/chatbot',
+    path: '/chat',
     name: 'ChatBot',
-    component: () => import('../views/ChatBot.vue'),
+    component: () => import('../views/chat/Index.vue'),
     meta: { requiresAuth: true, title: 'AI助手' }
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('../views/Profile.vue'),
-    meta: { requiresAuth: true, title: '个人资料' }
+    component: () => import('../views/profile/Index.vue'),
+    meta: { requiresAuth: true, title: '个人中心' }
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: () => import('../views/Settings.vue'),
+    component: () => import('../views/profile/Settings.vue'),
     meta: { requiresAuth: true, title: '系统设置' }
   }
 ];
@@ -97,8 +97,8 @@ router.beforeEach((to, from, next) => {
     return;
   }
   
-  // 如果已经登录，不允许访问登录页
-  if (to.path === '/login' && authStore.isAuthenticated) {
+  // 如果已经登录，不允许访问登录页和注册页
+  if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
     next('/dashboard');
     return;
   }

@@ -34,8 +34,8 @@
             {{ sensor.unit }}
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="sensor.is_active ? 'success' : 'danger'">
-              {{ sensor.is_active ? '在线' : '离线' }}
+            <el-tag :type="sensor.status === 'active' ? 'success' : 'danger'">
+              {{ sensor.status === 'active' ? '在线' : '离线' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="数值范围">
@@ -279,7 +279,7 @@ const fetchReadings = async () => {
   loadingReadings.value = true
   try {
     const response = await sensorsApi.getSensorReadings(sensorId, {
-      limit: 1000
+      per_page: 1000
     })
     readings.value = response.data || []
   } catch (error) {

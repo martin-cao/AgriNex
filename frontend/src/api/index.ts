@@ -1,11 +1,9 @@
-// api/index.ts
-export { authApi } from './auth';
-export { devicesApi } from './devices';
-export { sensorsApi } from './sensors';
-export { alarmsApi } from './alarms';
-export { predictionsApi } from './predictions';
+// API 模块统一导出
+export { http, request } from './http';
 export { dashboardApi } from './dashboard';
-export { llmApi } from './llm';
-export { systemApi } from './system';
-export { mediaApi } from './media';
-export { default as api } from './client';
+export { deviceApi } from './device';
+export { sensorsApi } from './sensors';
+export { alarmApi } from './alarm';
+export { chatApi } from './chat';
+export { userApi } from './user';
+export { deviceTemplatesApi } from './deviceTemplates';

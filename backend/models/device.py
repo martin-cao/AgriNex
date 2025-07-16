@@ -24,6 +24,9 @@ class Device(db.Model):
     sensors = db.relationship('Sensor', backref='device', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
+        # 计算活跃传感器数量
+        active_sensors = [s for s in self.sensors if s.status == 'active']
+        
         return {
             'id': self.id,
             'name': self.name,
@@ -34,6 +37,8 @@ class Device(db.Model):
             'port': self.port,
             'is_active': self.is_active,
             'client_id': self.client_id,
+            'sensor_count': len(active_sensors),  # 添加传感器数量
+            'last_seen': self.updated_at.isoformat() if self.updated_at else None,  # 使用更新时间作为最后在线时间
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

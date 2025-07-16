@@ -4,13 +4,28 @@
       <h2>传感器数据</h2>
       <div class="header-actions">
         <el-select
-          v-model="selectedSensor"
-          placeholder="选择传感器"
-          style="width: 200px; margin-right: 10px"
-          @change="onSensorChange"
+          v-model="selectedLocation"
+          placeholder="选择地点"
+          style="width: 180px; margin-right: 10px"
+          clearable
+          @change="onLocationChange"
         >
           <el-option
-            v-for="sensor in sensorsStore.sensors"
+            v-for="location in availableLocations"
+            :key="location"
+            :label="location"
+            :value="location"
+          />
+        </el-select>
+        <el-select
+          v-model="selectedSensor"
+          placeholder="选择设备"
+          style="width: 240px; margin-right: 10px"
+          @change="onSensorChange"
+          :disabled="!selectedLocation || filteredSensors.length === 0"
+        >
+          <el-option
+            v-for="sensor in filteredSensors"
             :key="sensor.id"
             :label="sensor.name"
             :value="sensor.id"
@@ -55,8 +70,8 @@
             <el-col :xs="24" :sm="12" :md="6">
               <div class="info-item">
                 <span class="label">状态：</span>
-                <el-tag :type="currentSensor.is_active ? 'success' : 'danger'" size="small">
-                  {{ currentSensor.is_active ? '启用' : '禁用' }}
+                <el-tag :type="currentSensor.status === 'active' ? 'success' : 'danger'" size="small">
+                  {{ currentSensor.status === 'active' ? '启用' : '禁用' }}
                 </el-tag>
               </div>
             </el-col>
@@ -302,6 +317,7 @@ use([
 const sensorsStore = useSensorsStore();
 
 const selectedSensor = ref<number | null>(null);
+const selectedLocation = ref<string | null>(null);
 const timeRange = ref('24h');
 const currentPage = ref(1);
 const pageSize = ref(50);
@@ -337,6 +353,105 @@ const dataRules: FormRules = {
     { required: true, message: '请输入数值', trigger: 'blur' }
   ]
 };
+
+// 计算属性
+const availableLocations = computed(() => {
+  const locations = new Set<string>();
+  
+  // 确保至少有基本的地点选项
+  locations.add('全部地点');
+  
+  sensorsStore.sensors.forEach(sensor => {
+    // 从传感器名称中提取地点信息
+    const name = sensor.name.toLowerCase();
+    
+    // 根据关键词分类
+    if (name.includes('温室') || name.includes('大棚') || name.includes('greenhouse')) {
+      locations.add('温室大棚');
+    } else if (name.includes('农场') || name.includes('农田') || name.includes('field') || name.includes('farm')) {
+      locations.add('农场农田');
+    } else if (name.includes('仓库') || name.includes('储存') || name.includes('storage') || name.includes('warehouse')) {
+      locations.add('仓库储存');
+    } else if (name.includes('办公') || name.includes('室内') || name.includes('office') || name.includes('indoor')) {
+      locations.add('办公室内');
+    } else if (name.includes('outdoor') || name.includes('室外') || name.includes('外部')) {
+      locations.add('室外环境');
+    }
+    
+    // 如果包含地点信息，尝试提取具体地点
+    const locationKeywords = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '天津'];
+    locationKeywords.forEach(keyword => {
+      if (name.includes(keyword)) {
+        locations.add(keyword);
+      }
+    });
+    
+    // 根据传感器类型添加分类
+    if (name.includes('温度') || name.includes('temperature')) {
+      locations.add('温度监测区');
+    } else if (name.includes('湿度') || name.includes('humidity')) {
+      locations.add('湿度监测区');
+    } else if (name.includes('土壤') || name.includes('soil')) {
+      locations.add('土壤监测区');
+    } else if (name.includes('光照') || name.includes('light')) {
+      locations.add('光照监测区');
+    }
+  });
+  
+  // 如果没有具体分类，至少确保有"其他区域"
+  if (locations.size <= 1) {
+    locations.add('默认区域');
+  }
+  
+  return Array.from(locations).sort();
+});
+
+const filteredSensors = computed(() => {
+  if (!selectedLocation.value || selectedLocation.value === '全部地点') {
+    return sensorsStore.sensors;
+  }
+  
+  return sensorsStore.sensors.filter(sensor => {
+    const name = sensor.name.toLowerCase();
+    const location = selectedLocation.value!.toLowerCase();
+    
+    // 精确匹配城市名称
+    if (['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '天津'].includes(selectedLocation.value!)) {
+      return name.includes(location);
+    }
+    
+    // 匹配地点类型
+    if (location.includes('温室') && (name.includes('温室') || name.includes('大棚') || name.includes('greenhouse'))) {
+      return true;
+    } else if (location.includes('农场') && (name.includes('农场') || name.includes('农田') || name.includes('field') || name.includes('farm'))) {
+      return true;
+    } else if (location.includes('仓库') && (name.includes('仓库') || name.includes('储存') || name.includes('storage') || name.includes('warehouse'))) {
+      return true;
+    } else if (location.includes('办公') && (name.includes('办公') || name.includes('室内') || name.includes('office') || name.includes('indoor'))) {
+      return true;
+    } else if (location.includes('室外') && (name.includes('outdoor') || name.includes('室外') || name.includes('外部'))) {
+      return true;
+    }
+    
+    // 匹配监测类型
+    if (location.includes('温度') && (name.includes('温度') || name.includes('temperature'))) {
+      return true;
+    } else if (location.includes('湿度') && (name.includes('湿度') || name.includes('humidity'))) {
+      return true;
+    } else if (location.includes('土壤') && (name.includes('土壤') || name.includes('soil'))) {
+      return true;
+    } else if (location.includes('光照') && (name.includes('光照') || name.includes('light'))) {
+      return true;
+    }
+    
+    // 默认情况：如果选择了"默认区域"，显示所有不匹配其他分类的传感器
+    if (location.includes('默认')) {
+      return true;
+    }
+    
+    return false;
+  });
+});
 
 // 图表配置
 const chartOption = computed(() => ({
@@ -399,15 +514,7 @@ const getValueStatus = (value: number | null) => {
   if (value === null || value === undefined) return 'info';
   if (!currentSensor.value) return 'info';
   
-  const { min_value, max_value } = currentSensor.value;
-  
-  if (min_value !== null && min_value !== undefined && value < min_value) {
-    return 'danger';
-  }
-  if (max_value !== null && max_value !== undefined && value > max_value) {
-    return 'danger';
-  }
-  
+  // 由于后端暂不支持阈值，直接返回成功状态
   return 'success';
 };
 
@@ -419,11 +526,29 @@ const getValueStatusText = (value: number | null) => {
   switch (status) {
     case 'success':
       return '正常';
-    case 'danger':
-      return '异常';
+    case 'info':
+      return '正常';
     default:
       return '未知';
   }
+};
+
+// 地点改变
+const onLocationChange = async (location: string | null) => {
+  selectedLocation.value = location;
+  
+  // 重置传感器选择
+  selectedSensor.value = null;
+  
+  // 清空传感器数据
+  currentSensor.value = null;
+  latestValue.value = null;
+  latestTime.value = null;
+  statistics.count = 0;
+  statistics.avg = 0;
+  statistics.min = 0;
+  statistics.max = 0;
+  statistics.std = 0;
 };
 
 // 传感器改变
@@ -488,9 +613,8 @@ const loadSensorReadings = async (sensorId: number) => {
     };
     
     const result = await sensorsStore.fetchSensorReadings(sensorId, params);
-    if (result.pagination) {
-      totalCount.value = result.pagination.total;
-    }
+    // 暂时使用读数数组的长度作为总数
+    totalCount.value = sensorsStore.sensorReadings.length;
   } catch (error) {
     console.error('加载传感器读数失败:', error);
   } finally {
@@ -613,6 +737,9 @@ const resetDataForm = () => {
 onMounted(async () => {
   await sensorsStore.fetchSensors();
   
+  // 默认选择"全部地点"，这样用户可以看到所有传感器
+  selectedLocation.value = '全部地点';
+  
   // 如果有传感器，默认选择第一个
   if (sensorsStore.sensors.length > 0) {
     selectedSensor.value = sensorsStore.sensors[0].id;
@@ -624,6 +751,8 @@ onMounted(async () => {
 <style scoped>
 .sensor-data-page {
   padding: 20px;
+  background: var(--agrinex-bg-primary);
+  min-height: 100vh;
 }
 
 .page-header {
@@ -635,7 +764,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .header-actions {
@@ -655,8 +784,9 @@ onMounted(async () => {
 .data-table-card,
 .statistics-card {
   border-radius: 10px;
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--agrinex-border-color-split);
+  box-shadow: var(--agrinex-shadow-light);
+  background: var(--agrinex-bg-card);
 }
 
 .card-header {
@@ -665,6 +795,7 @@ onMounted(async () => {
   align-items: center;
   font-weight: bold;
   font-size: 16px;
+  color: var(--agrinex-text-primary);
 }
 
 .info-item {
@@ -675,12 +806,12 @@ onMounted(async () => {
 
 .info-item .label {
   font-weight: 500;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   min-width: 80px;
 }
 
 .info-item .value {
-  color: #333;
+  color: var(--agrinex-text-primary);
   flex: 1;
 }
 
@@ -700,12 +831,12 @@ onMounted(async () => {
 .realtime-value .value {
   font-size: 48px;
   font-weight: bold;
-  color: #409EFF;
+  color: var(--agrinex-primary);
 }
 
 .realtime-value .unit {
   font-size: 18px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .realtime-info {
@@ -714,7 +845,7 @@ onMounted(async () => {
 
 .realtime-info .time {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-tertiary);
   margin-bottom: 10px;
 }
 
@@ -745,14 +876,14 @@ onMounted(async () => {
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   margin-bottom: 10px;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .no-sensor-selected {

@@ -5,7 +5,7 @@ export const deviceApi = {
   // 获取设备列表
   getDevices: (params?: {
     page?: number;
-    size?: number;
+    per_page?: number;
     status?: DeviceStatus;
     type?: string;
     search?: string;

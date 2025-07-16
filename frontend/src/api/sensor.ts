@@ -5,7 +5,7 @@ export const sensorApi = {
   // 获取传感器列表
   getSensors: (params?: {
     page?: number;
-    size?: number;
+    per_page?: number;
     status?: 'active' | 'inactive' | 'error';
     type?: string;
     search?: string;

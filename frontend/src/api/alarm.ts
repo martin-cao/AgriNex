@@ -5,7 +5,7 @@ export const alarmApi = {
   // 获取报警列表
   getAlarms: (params?: {
     page?: number;
-    size?: number;
+    per_page?: number;
     status?: 'active' | 'resolved' | 'ignored';
     level?: 'low' | 'medium' | 'high' | 'critical';
     start_time?: string;

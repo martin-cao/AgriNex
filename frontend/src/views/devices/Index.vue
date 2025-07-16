@@ -420,7 +420,7 @@ const fetchDevices = async () => {
     loading.value = true;
     const response = await deviceApi.getDevices({
       page: pagination.current,
-      size: pagination.pageSize
+      per_page: pagination.pageSize
     }) as any; // 临时使用any类型
     
     // 适配后端API响应格式: { data: [...], success: true, total: 6 }

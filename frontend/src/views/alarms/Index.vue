@@ -146,6 +146,24 @@
       </a-row>
     </a-card>
 
+    <!-- 调试信息 -->
+    <a-card v-if="isDev" style="margin-bottom: 16px; background: #f0f0f0;">
+      <h4>🐛 分页调试信息</h4>
+      <p><strong>当前页:</strong> {{ pagination.current }}</p>
+      <p><strong>每页大小:</strong> {{ pagination.pageSize }}</p>
+      <p><strong>总记录数:</strong> {{ pagination.total }}</p>
+      <p><strong>当前显示条数:</strong> {{ alarms.length }}</p>
+      <p><strong>过滤后条数:</strong> {{ filteredAlarms.length }}</p>
+      <p><strong>全局测试数据总数:</strong> {{ globalTestAlarms.length }}</p>
+      <p><strong>分页配置:</strong> {{ JSON.stringify({
+        current: pagination.current,
+        pageSize: pagination.pageSize,
+        total: pagination.total,
+        showSizeChanger: pagination.showSizeChanger,
+        showQuickJumper: pagination.showQuickJumper
+      }) }}</p>
+    </a-card>
+
     <!-- 告警列表 -->
     <a-card class="alarms-list" v-if="alarms.length > 0">
       <a-table
@@ -223,13 +241,10 @@
         :columns="ruleColumns"
         :data-source="alarmRules"
         :loading="loading"
-        :pagination="{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条规则`
-        }"
+        :pagination="rulesPagination"
         row-key="id"
+        @change="handleRulesTableChange"
+      >
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'sensor_name'">
@@ -760,6 +775,12 @@ const selectedRule = ref<any | null>(null);
 const resolutionNote = ref('');
 const alarmRules = ref<any[]>([]);
 
+// 全局测试数据，用于分页测试 - 改为 ref 以便在模板中访问
+const globalTestAlarms = ref<Alarm[]>([]);
+
+// 开发模式标识，用于模板中的条件判断
+const isDev = ref(import.meta.env.DEV);
+
 const newRule = reactive({
   name: '',
   description: '',
@@ -795,6 +816,18 @@ const pagination = reactive({
   total: 0,
   showSizeChanger: true,
   showQuickJumper: true
+});
+
+// 告警规则的分页配置
+const rulesPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  pageSizeOptions: ['10', '20', '50', '100'],
+  showTotal: (total: number, range: [number, number]) => 
+    `第 ${range[0]}-${range[1]} 条，共 ${total} 条规则`
 });
 
 // 表格列定义
@@ -984,73 +1017,103 @@ const checkAuth = () => {
 };
 
 const createTestAlarms = () => {
-  const testAlarms: Alarm[] = [
-    {
-      id: '1',
-      device_id: '111',
-      sensor_id: '1',
-      type: 'threshold',
-      level: 'critical',
-      status: 'active',
-      title: '温度告警',
-      message: '土壤温度超过安全阈值',
-      description: '传感器检测到土壤温度过高，可能影响作物生长',
-      triggered_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      trigger_value: 35.5,
-      threshold_value: 30.0,
-      device_name: 'TEST_DEVICE',
-      sensor_name: 'TEST_DEVICE (111)',
-      value: 35.5,
-      unit: '°C',
-      threshold: 30.0,
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: '2',
-      device_id: '111',
-      sensor_id: '2',
-      type: 'threshold',
-      level: 'medium',
-      status: 'acknowledged',
-      title: '湿度告警',
-      message: '土壤湿度偏低',
-      description: '传感器检测到土壤湿度不足，建议增加灌溉',
-      triggered_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      trigger_value: 25.0,
-      threshold_value: 30.0,
-      device_name: 'TEST_DEVICE',
-      sensor_name: 'TEST_DEVICE (111)',
-      value: 25.0,
-      unit: '%',
-      threshold: 30.0,
-      created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: '3',
-      device_id: '111',
-      type: 'connection',
-      level: 'high',
-      status: 'resolved',
-      title: '设备连接告警',
-      message: '设备失去连接',
-      description: '设备无法正常通信，已恢复连接',
-      triggered_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      resolved_at: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
-      resolution_note: '重启设备后恢复正常',
-      device_name: 'TEST_DEVICE',
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  // 只在首次创建测试数据时生成
+  if (globalTestAlarms.value.length === 0) {
+    const baseAlarms = [
+      {
+        id: '1',
+        device_id: '111',
+        sensor_id: '1',
+        type: 'threshold',
+        level: 'critical',
+        status: 'active',
+        title: '温度告警',
+        message: '土壤温度超过安全阈值',
+        description: '传感器检测到土壤温度过高，可能影响作物生长',
+        triggered_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        trigger_value: 35.5,
+        threshold_value: 30.0,
+        device_name: 'TEST_DEVICE',
+        sensor_name: 'TEST_DEVICE (111)',
+        value: 35.5,
+        unit: '°C',
+        threshold: 30.0,
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: '2',
+        device_id: '111',
+        sensor_id: '2',
+        type: 'threshold',
+        level: 'medium',
+        status: 'acknowledged',
+        title: '湿度告警',
+        message: '土壤湿度偏低',
+        description: '传感器检测到土壤湿度不足，建议增加灌溉',
+        triggered_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+        trigger_value: 25.0,
+        threshold_value: 30.0,
+        device_name: 'TEST_DEVICE',
+        sensor_name: 'TEST_DEVICE (111)',
+        value: 25.0,
+        unit: '%',
+        threshold: 30.0,
+        created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: '3',
+        device_id: '111',
+        type: 'connection',
+        level: 'high',
+        status: 'resolved',
+        title: '设备连接告警',
+        message: '设备失去连接',
+        description: '设备无法正常通信，已恢复连接',
+        triggered_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        resolved_at: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+        resolution_note: '重启设备后恢复正常',
+        device_name: 'TEST_DEVICE',
+        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+    
+    // 生成更多测试数据，总共25条记录来测试分页
+    for (let i = 0; i < 25; i++) {
+      const baseAlarm = baseAlarms[i % baseAlarms.length];
+      globalTestAlarms.value.push({
+        ...baseAlarm,
+        id: `${i + 1}`,
+        title: `${baseAlarm.title} ${i + 1}`,
+        message: `${baseAlarm.message} (第${i + 1}条)`,
+        created_at: new Date(Date.now() - i * 60 * 60 * 1000).toISOString(),
+        triggered_at: new Date(Date.now() - i * 60 * 60 * 1000).toISOString()
+      } as Alarm);
     }
-  ];
+  }
   
-  alarms.value = testAlarms;
-  pagination.total = testAlarms.length;
+  // 根据当前页码和每页大小来切片数据
+  const startIndex = (pagination.current - 1) * pagination.pageSize;
+  const endIndex = startIndex + pagination.pageSize;
+  alarms.value = globalTestAlarms.value.slice(startIndex, endIndex);
+  pagination.total = globalTestAlarms.value.length; // 总记录数为25
   
-  // 更新统计数据
-  alarmStats.active = testAlarms.filter(a => a.status === 'active').length;
-  alarmStats.today = testAlarms.filter(a => 
+  console.log(`📊 分页测试数据生成:`, {
+    '当前页': pagination.current,
+    '每页大小': pagination.pageSize,
+    '起始索引': startIndex,
+    '结束索引': endIndex,
+    '总记录数': pagination.total,
+    '当前页显示条数': alarms.value.length,
+    '全局数据总数': globalTestAlarms.value.length,
+    '当前页数据': alarms.value.map(a => ({ id: a.id, title: a.title }))
+  });
+  
+  // 更新统计数据（基于全部数据）
+  alarmStats.active = globalTestAlarms.value.filter(a => a.status === 'active').length;
+  alarmStats.today = globalTestAlarms.value.filter(a => 
     dayjs(a.created_at).isAfter(dayjs().startOf('day'))
   ).length;
-  alarmStats.resolved = testAlarms.filter(a => a.status === 'resolved').length;
+  alarmStats.resolved = globalTestAlarms.value.filter(a => a.status === 'resolved').length;
   alarmStats.rules = 5; // 模拟告警规则数量
 };
 const fetchAlarms = async () => {
@@ -1058,11 +1121,18 @@ const fetchAlarms = async () => {
   
   try {
     loading.value = true;
-    console.log('开始获取告警列表...');
+    console.log('🚀 开始获取告警列表，当前分页参数:', {
+      current: pagination.current,
+      pageSize: pagination.pageSize,
+      total: pagination.total
+    });
+    
     const response = await alarmApi.getAlarms({
       page: pagination.current,
-      size: pagination.pageSize
+      per_page: pagination.pageSize
     });
+    
+    console.log('📡 API 响应:', response);
     
     // 处理API响应数据
     if (Array.isArray(response)) {
@@ -1268,9 +1338,13 @@ const fetchAlarmRules = async () => {
     console.log('获取告警规则成功:', alarmRules.value);
     // 更新统计中的规则数量
     alarmStats.rules = alarmRules.value.length;
+    // 更新告警规则分页总数
+    rulesPagination.total = alarmRules.value.length;
+    console.log('🔧 告警规则分页总数更新:', rulesPagination.total);
   } catch (error) {
     console.error('获取告警规则列表失败:', error);
     alarmRules.value = [];
+    rulesPagination.total = 0;
   }
 };
 
@@ -1404,9 +1478,28 @@ const handleFilterChange = () => {
 };
 
 const handleTableChange = (pag: any) => {
+  console.log('🔄 handleTableChange 被调用:', {
+    '传入的pag参数': pag,
+    '当前pagination': { ...pagination },
+    '即将设置的current': pag.current,
+    '即将设置的pageSize': pag.pageSize
+  });
+  
   pagination.current = pag.current;
   pagination.pageSize = pag.pageSize;
+  
+  console.log('🔄 pagination 更新后:', { ...pagination });
+  
   fetchAlarms();
+};
+
+// 告警规则表格分页处理
+const handleRulesTableChange = (pag: any) => {
+  console.log('🔧 告警规则分页改变:', pag);
+  rulesPagination.current = pag.current;
+  rulesPagination.pageSize = pag.pageSize;
+  rulesPagination.total = pag.total;
+  // 这里可以添加实际的规则数据获取逻辑
 };
 
 const acknowledgeAlarm = async (alarm: Alarm) => {

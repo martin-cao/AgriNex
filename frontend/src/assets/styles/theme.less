@@ -1,0 +1,283 @@
+// 全局主题样式变量
+:root {
+  // 亮色主题变量
+  --agrinex-bg-primary: #ffffff;
+  --agrinex-bg-secondary: #fafafa;
+  --agrinex-bg-tertiary: #f5f5f5;
+  --agrinex-bg-card: #ffffff;
+  --agrinex-bg-header: #ffffff;
+  --agrinex-bg-sidebar: #ffffff;
+  --agrinex-bg-hover: #fafafa;
+  --agrinex-bg-active: #f6ffed;
+  
+  --agrinex-text-primary: #262626;
+  --agrinex-text-secondary: #595959;
+  --agrinex-text-tertiary: #8c8c8c;
+  --agrinex-text-disabled: #bfbfbf;
+  
+  --agrinex-border-color: #d9d9d9;
+  --agrinex-border-color-split: #f0f0f0;
+  
+  --agrinex-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --agrinex-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --agrinex-shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.12);
+  
+  --agrinex-primary: #1890ff;
+  --agrinex-success: #52c41a;
+  --agrinex-warning: #faad14;
+  --agrinex-error: #ff4d4f;
+  --agrinex-info: #1890ff;
+  
+  // 设备状态颜色
+  --agrinex-device-online: #52c41a;
+  --agrinex-device-offline: #ff4d4f;
+  --agrinex-device-maintenance: #faad14;
+  
+  // 农业特色颜色
+  --agrinex-agriculture-green: #73d13d;
+  --agrinex-agriculture-soil: #8c4b00;
+  --agrinex-agriculture-water: #1890ff;
+  --agrinex-agriculture-sun: #faad14;
+}
+
+// 暗色主题变量
+.dark-theme {
+  --agrinex-bg-primary: #000000;
+  --agrinex-bg-secondary: #141414;
+  --agrinex-bg-tertiary: #1f1f1f;
+  --agrinex-bg-card: #1f1f1f;
+  --agrinex-bg-header: #1f1f1f;
+  --agrinex-bg-sidebar: #1f1f1f;
+  --agrinex-bg-hover: #262626;
+  --agrinex-bg-active: rgba(82, 196, 26, 0.1);
+  
+  --agrinex-text-primary: rgba(255, 255, 255, 0.85);
+  --agrinex-text-secondary: rgba(255, 255, 255, 0.65);
+  --agrinex-text-tertiary: rgba(255, 255, 255, 0.45);
+  --agrinex-text-disabled: rgba(255, 255, 255, 0.25);
+  
+  --agrinex-border-color: #434343;
+  --agrinex-border-color-split: #303030;
+  
+  --agrinex-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --agrinex-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --agrinex-shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.35);
+  
+  --agrinex-primary: #1890ff;
+  --agrinex-success: #52c41a;
+  --agrinex-warning: #faad14;
+  --agrinex-error: #ff4d4f;
+  --agrinex-info: #1890ff;
+  
+  // 设备状态颜色在暗色主题下稍微调亮
+  --agrinex-device-online: #73d13d;
+  --agrinex-device-offline: #ff7875;
+  --agrinex-device-maintenance: #ffc53d;
+  
+  // 农业特色颜色在暗色主题下的调整
+  --agrinex-agriculture-green: #95de64;
+  --agrinex-agriculture-soil: #d4862a;
+  --agrinex-agriculture-water: #40a9ff;
+  --agrinex-agriculture-sun: #ffc53d;
+}
+
+// 全局样式重置和基础样式
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol';
+  font-size: 14px;
+  line-height: 1.5715;
+  color: var(--agrinex-text-primary);
+  background-color: var(--agrinex-bg-primary);
+  transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+              background-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+#app {
+  height: 100vh;
+  background-color: var(--agrinex-bg-primary);
+  transition: background-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--agrinex-bg-secondary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--agrinex-border-color);
+  border-radius: 3px;
+  transition: background-color 0.3s;
+  
+  &:hover {
+    background: var(--agrinex-text-tertiary);
+  }
+}
+
+// 暗色主题下的滚动条调整
+.dark-theme {
+  ::-webkit-scrollbar-track {
+    background: var(--agrinex-bg-tertiary);
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #434343;
+    
+    &:hover {
+      background: #595959;
+    }
+  }
+}
+
+// 登录页面主题适配
+.login-container {
+  background: var(--agrinex-bg-primary);
+  transition: background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(240, 249, 240, 0.8) 0%, rgba(230, 247, 230, 0.8) 100%);
+    transition: opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  }
+}
+
+.dark-theme .login-container {
+  &::before {
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.8) 0%, rgba(40, 40, 40, 0.8) 100%);
+  }
+}
+
+// 主题切换动画
+* {
+  transition: background-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+              border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+              color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+              box-shadow 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+// 通用卡片样式主题适配
+.theme-card {
+  background: var(--agrinex-bg-card);
+  border: 1px solid var(--agrinex-border-color-split);
+  border-radius: 8px;
+  box-shadow: var(--agrinex-shadow-light);
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  
+  &:hover {
+    box-shadow: var(--agrinex-shadow-medium);
+  }
+}
+
+// 设备状态相关样式主题适配
+.device-status {
+  &.online {
+    color: var(--agrinex-device-online);
+    border-color: var(--agrinex-device-online);
+  }
+  
+  &.offline {
+    color: var(--agrinex-device-offline);
+    border-color: var(--agrinex-device-offline);
+  }
+  
+  &.maintenance {
+    color: var(--agrinex-device-maintenance);
+    border-color: var(--agrinex-device-maintenance);
+  }
+}
+
+// 农业特色元素样式
+.agriculture-element {
+  &.soil {
+    color: var(--agrinex-agriculture-soil);
+  }
+  
+  &.water {
+    color: var(--agrinex-agriculture-water);
+  }
+  
+  &.sun {
+    color: var(--agrinex-agriculture-sun);
+  }
+  
+  &.plant {
+    color: var(--agrinex-agriculture-green);
+  }
+}
+
+// 响应式主题切换按钮
+.theme-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  background: var(--agrinex-bg-secondary);
+  border: 1px solid var(--agrinex-border-color);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  
+  .theme-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--agrinex-text-secondary);
+    transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    
+    &.active {
+      background: var(--agrinex-primary);
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+    }
+    
+    &:hover:not(.active) {
+      color: var(--agrinex-text-primary);
+      background: var(--agrinex-bg-tertiary);
+    }
+  }
+}
+
+// 暗色主题下的特殊调整
+.dark-theme {
+  // 确保某些元素在暗色主题下有足够的对比度
+  .ant-card {
+    background: var(--agrinex-bg-card);
+    border-color: var(--agrinex-border-color-split);
+  }
+  
+  .ant-layout {
+    background: var(--agrinex-bg-primary);
+    
+    .ant-layout-header {
+      background: var(--agrinex-bg-header);
+      border-bottom: 1px solid var(--agrinex-border-color-split);
+    }
+    
+    .ant-layout-sider {
+      background: var(--agrinex-bg-sidebar);
+    }
+    
+    .ant-layout-content {
+      background: var(--agrinex-bg-primary);
+    }
+  }
+}

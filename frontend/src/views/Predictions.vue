@@ -441,12 +441,12 @@ onMounted(async () => {
 
 .header-content h2 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .header-content p {
   margin: 0;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .config-card,

@@ -141,6 +141,7 @@ export default {
 
 .chat-header h3 {
   margin: 0;
+  color: var(--agrinex-text-primary);
 }
 
 .chat-messages {
@@ -177,14 +178,14 @@ export default {
 }
 
 .bot-message .message-content {
-  background: white;
-  color: #333;
-  border: 1px solid #ddd;
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+  border: 1px solid var(--agrinex-border-color);
 }
 
 .message-time {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   margin-top: 0.25rem;
 }
 

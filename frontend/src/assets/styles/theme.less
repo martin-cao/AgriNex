@@ -98,6 +98,12 @@ body {
               background-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
+// 全局标题样式适配暗色主题
+h1, h2, h3, h4, h5, h6 {
+  color: var(--agrinex-text-primary);
+  transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
 #app {
   height: 100vh;
   background-color: var(--agrinex-bg-primary);
@@ -279,5 +285,22 @@ body {
     .ant-layout-content {
       background: var(--agrinex-bg-primary);
     }
+  }
+  
+  // 确保所有标题在暗色模式下使用正确的颜色
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--agrinex-text-primary) !important;
+  }
+  
+  // 页面标题特殊处理
+  .page-header h1,
+  .page-header h2,
+  .page-header h3 {
+    color: var(--agrinex-text-primary) !important;
+  }
+  
+  // 卡片标题
+  .ant-card-head-title {
+    color: var(--agrinex-text-primary) !important;
   }
 }

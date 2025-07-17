@@ -1946,8 +1946,8 @@ onMounted(() => {
       margin: 0;
       
       .ant-table-thead > tr > th {
-        background: #f5f5f5;
-        color: #333;
+        background: var(--agrinex-bg-secondary);
+        color: var(--agrinex-text-primary);
         font-weight: 500;
       }
       

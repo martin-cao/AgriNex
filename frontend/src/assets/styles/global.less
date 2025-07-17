@@ -148,16 +148,33 @@ html, body {
 .page-header {
   margin-bottom: @spacing-lg;
   
-  h1 {
+  h1, h2, h3 {
     margin: 0;
+    color: var(--agrinex-text-primary);
+  }
+  
+  h1 {
     font-size: 24px;
-    color: @text-color-primary;
+  }
+  
+  h2 {
+    font-size: 20px;
+  }
+  
+  h3 {
+    font-size: 16px;
   }
   
   .page-description {
     margin-top: @spacing-xs;
-    color: @text-color-secondary;
+    color: var(--agrinex-text-secondary);
   }
+}
+
+/* 全局标题样式 */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--agrinex-text-primary);
+  transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 /* 响应式 */

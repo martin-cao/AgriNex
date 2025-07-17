@@ -527,13 +527,13 @@ onMounted(async () => {
 .stats-number {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: var(--agrinex-text-primary);
   margin-bottom: 5px;
 }
 
 .stats-label {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .charts-row {
@@ -591,7 +591,7 @@ onMounted(async () => {
 
 .status-label {
   font-size: 14px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   margin-bottom: 10px;
 }
 

@@ -691,13 +691,13 @@ onMounted(() => {
         .stat-value {
           font-size: 20px;
           font-weight: 600;
-          color: #262626;
+          color: var(--agrinex-text-primary);
           margin-bottom: 4px;
         }
 
         .stat-label {
           font-size: 12px;
-          color: #8c8c8c;
+          color: var(--agrinex-text-tertiary);
         }
       }
     }
@@ -722,19 +722,19 @@ onMounted(() => {
       flex: 1;
 
       strong {
-        color: #262626;
+        color: var(--agrinex-text-primary);
       }
 
       p {
         margin: 4px 0 0 0;
-        color: #8c8c8c;
+        color: var(--agrinex-text-tertiary);
         font-size: 12px;
       }
     }
 
     .activity-time {
       font-size: 12px;
-      color: #8c8c8c;
+      color: var(--agrinex-text-tertiary);
       white-space: nowrap;
       margin-left: 16px;
     }

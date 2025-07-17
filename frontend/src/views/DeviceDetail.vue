@@ -480,12 +480,12 @@ onMounted(async () => {
 
 .info-item .label {
   font-weight: 500;
-  color: #666;
+  color: var(--agrinex-text-secondary);
   min-width: 80px;
 }
 
 .info-item .value {
-  color: #333;
+  color: var(--agrinex-text-primary);
   flex: 1;
 }
 
@@ -513,13 +513,13 @@ onMounted(async () => {
 .sensor-name {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--agrinex-text-primary);
   margin-bottom: 5px;
 }
 
 .sensor-type {
   font-size: 12px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .sensor-value {
@@ -535,7 +535,7 @@ onMounted(async () => {
 
 .sensor-value .time {
   font-size: 12px;
-  color: #999;
+  color: var(--agrinex-text-tertiary);
 }
 
 .loading-container {

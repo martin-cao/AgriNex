@@ -382,7 +382,7 @@ onMounted(async () => {
 
 .header-content h2 {
   margin: 0;
-  color: #333;
+  color: var(--agrinex-text-primary);
 }
 
 .loading-container {
@@ -434,12 +434,12 @@ onMounted(async () => {
 
 .unit {
   font-size: 1.2rem;
-  color: #666;
+  color: var(--agrinex-text-secondary);
 }
 
 .value-time {
   margin-top: 10px;
-  color: #999;
+  color: var(--agrinex-text-tertiary);
 }
 
 .chart-container {

@@ -32,6 +32,135 @@ docker-compose ps
 - Redis: localhost:6379
 - MySQL: localhost:3307
 
+## 🌱 模拟设备管理
+
+AgriNex 支持通过脚本快速添加虚拟设备进行测试和演示。
+
+### 添加模拟设备
+
+使用 `scripts/start_simulator_device.sh` 脚本可以快速启动虚拟设备容器：
+
+```bash
+# 基本用法 - 启动土壤传感器
+./scripts/start_simulator_device.sh --device-id SIM_001 --type soil_sensor
+
+# 启动气象站
+./scripts/start_simulator_device.sh --device-id SIM_002 --type weather_station
+
+# 启动灌溉控制器并自定义参数
+./scripts/start_simulator_device.sh \
+  --device-id SIM_003 \
+  --type irrigation_controller \
+  --port 30003 \
+  --interval 15
+```
+
+### 支持的设备类型
+
+- **soil_sensor**: 土壤传感器 - 监测土壤湿度、温度、pH值
+- **weather_station**: 气象站 - 监测气温、湿度、气压、风速
+- **irrigation_controller**: 灌溉控制器 - 控制水泵、阀门状态
+
+### 脚本参数说明
+
+| 参数 | 简写 | 说明 | 默认值 |
+|------|------|------|--------|
+| `--device-id` | `-i` | 设备唯一ID（必需） | - |
+| `--type` | `-t` | 设备类型 | `soil_sensor` |
+| `--port` | `-p` | HTTP端口号 | 自动分配（从30001开始） |
+| `--mqtt-host` | `-m` | MQTT主机地址 | `mosquitto` |
+| `--interval` | `-n` | 数据发送间隔（秒） | `30` |
+| `--help` | `-h` | 显示帮助信息 | - |
+
+### 设备容器管理
+
+AgriNex 的 `scripts/start_simulator_device.sh` 脚本现在集成了完整的设备管理功能：
+
+**查看和状态管理：**
+```bash
+# 查看所有设备状态
+./scripts/start_simulator_device.sh list
+
+# 查看系统状态（包括端口使用情况）
+./scripts/start_simulator_device.sh status
+
+# 查看设备日志
+./scripts/start_simulator_device.sh logs SIM_001
+
+# 检查设备健康状态
+./scripts/start_simulator_device.sh health SIM_001
+```
+
+**设备生命周期管理：**
+```bash
+# 停止指定设备
+./scripts/start_simulator_device.sh stop SIM_001
+
+# 启动已存在的设备
+./scripts/start_simulator_device.sh start SIM_001
+
+# 删除设备容器
+./scripts/start_simulator_device.sh remove SIM_001
+
+# 停止所有设备
+./scripts/start_simulator_device.sh stop-all
+
+# 清理所有停止的容器
+./scripts/start_simulator_device.sh clean
+```
+
+**手动管理命令（备用）：**
+```bash
+# 查看运行的设备容器
+docker ps | grep sensor-sim
+
+# 查看设备日志
+docker logs sensor-sim-SIM_001
+
+# 停止设备
+docker stop sensor-sim-SIM_001
+
+# 删除设备容器
+docker rm -f sensor-sim-SIM_001
+
+# 测试设备健康状态
+curl http://localhost:30001/health
+```
+
+### 在前端添加设备
+
+1. 启动模拟设备容器后，访问 AgriNex 前端界面
+2. 进入"设备管理"页面
+3. 点击"添加设备"
+4. 填写设备信息：
+   - **设备ID**: 与脚本中的 `--device-id` 一致
+   - **设备名称**: 自定义名称
+   - **设备类型**: 选择对应类型
+   - **设备地址**: `localhost:端口号`（如：`localhost:30001`）
+5. 保存后设备将开始发送模拟数据
+
+### 批量设备启动示例
+
+```bash
+# 启动一套完整的农场模拟环境
+./scripts/start_simulator_device.sh -i FARM_SOIL_01 -t soil_sensor -p 30001
+./scripts/start_simulator_device.sh -i FARM_WEATHER_01 -t weather_station -p 30002
+./scripts/start_simulator_device.sh -i FARM_IRRIGATION_01 -t irrigation_controller -p 30003
+
+# 启动多个土壤传感器
+for i in {1..5}; do
+  ./scripts/start_simulator_device.sh -i "SOIL_$(printf %02d $i)" -t soil_sensor
+done
+```
+
+### 注意事项
+
+- 确保 AgriNex 主系统已启动（`docker-compose up -d`）
+- 设备ID必须唯一，重复的ID会导致启动失败
+- 端口号会自动分配，避免冲突
+- 设备容器使用与主系统相同的Docker网络
+- 停止主系统前建议先清理所有设备容器
+
 ### 方式二：本地开发启动
 
 **1. 启动依赖服务**
@@ -54,11 +183,10 @@ npm install
 npm run dev
 ```
 
-**4. 启动传感器模拟器**
+**4. 添加模拟设备（可选）**
 ```bash
-cd sensor-client
-pip install -r requirements.txt
-python sensor_client.py
+# 启动虚拟设备进行测试
+./scripts/start_simulator_device.sh --device-id TEST_001 --type soil_sensor
 ```
 
 ## 📋 系统要求
@@ -91,9 +219,11 @@ AgriNex/
 │   ├── handlers/            # 消息处理器
 │   ├── tools/               # 工具函数
 │   └── main.py
-├── sensor-client/            # 传感器客户端
-│   ├── sensor_client.py     # 数据采集
+├── sensor-client/            # 传感器模拟器
+│   ├── main.py              # 模拟器主程序
 │   └── requirements.txt
+├── scripts/                  # 工具脚本
+│   └── start_simulator_device.sh  # 设备启动脚本
 ├── db/                       # 数据库脚本
 │   └── init_db.sql
 ├── docs/                     # 项目文档

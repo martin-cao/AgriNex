@@ -12,5 +12,19 @@
 <style lang="less" scoped>
 .predictions {
   padding: 24px;
+  background: var(--agrinex-bg-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease;
+  
+  h1 {
+    color: var(--agrinex-text-primary);
+    transition: color 0.3s ease;
+    margin-bottom: 16px;
+  }
+  
+  p {
+    color: var(--agrinex-text-secondary);
+    transition: color 0.3s ease;
+  }
 }
 </style>

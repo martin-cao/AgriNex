@@ -293,12 +293,15 @@ onMounted(() => {
 <style scoped>
 .prediction-history-container {
   padding: 16px;
-  background-color: #f5f5f5;
+  background-color: var(--agrinex-bg-secondary);
   min-height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 .header-card {
   margin-bottom: 16px;
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
 }
 
 .header-content {
@@ -307,16 +310,20 @@ onMounted(() => {
 
 .header-content h2 {
   margin: 0 0 8px 0;
-  color: #2c3e50;
+  color: var(--agrinex-text-primary);
+  transition: color 0.3s ease;
 }
 
 .header-content p {
   margin: 0;
-  color: #7f8c8d;
+  color: var(--agrinex-text-secondary);
+  transition: color 0.3s ease;
 }
 
 .action-card {
   margin-bottom: 16px;
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
 }
 
 .action-bar {
@@ -327,12 +334,15 @@ onMounted(() => {
 
 .history-table-card {
   margin-bottom: 16px;
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--agrinex-text-primary);
 }
 
 .sensor-info {
@@ -343,12 +353,14 @@ onMounted(() => {
 
 .sensor-name {
   font-size: 12px;
-  color: #666;
+  color: var(--agrinex-text-secondary);
+  transition: color 0.3s ease;
 }
 
 .unit {
   font-size: 12px;
-  color: #999;
+  color: var(--agrinex-text-tertiary);
+  transition: color 0.3s ease;
 }
 
 .confidence-interval {
@@ -370,7 +382,8 @@ onMounted(() => {
 }
 
 .confidence-interval .separator {
-  color: #909399;
+  color: var(--agrinex-text-secondary);
+  transition: color 0.3s ease;
 }
 
 .confidence-bar {
@@ -390,5 +403,225 @@ onMounted(() => {
 .stats {
   display: flex;
   gap: 16px;
+}
+
+/* Element Plus 暗色主题适配 */
+:deep(.el-card) {
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:deep(.el-card__header) {
+  background: var(--agrinex-bg-card);
+  border-bottom-color: var(--agrinex-border-color-split);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-table) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-table th) {
+  background: var(--agrinex-bg-secondary);
+  color: var(--agrinex-text-primary);
+  border-bottom-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-table td) {
+  border-bottom-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background: var(--agrinex-bg-tertiary);
+}
+
+:deep(.el-table__body tr:hover > td) {
+  background-color: var(--agrinex-bg-hover) !important;
+}
+
+:deep(.el-button) {
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button--text) {
+  color: var(--agrinex-primary);
+}
+
+:deep(.el-button--text:hover) {
+  background: var(--agrinex-bg-hover);
+}
+
+:deep(.el-dialog) {
+  background: var(--agrinex-bg-card);
+  border: 1px solid var(--agrinex-border-color-split);
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--agrinex-border-color-split);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-dialog__title) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-pagination) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-pagination .el-pager li) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+  border: 1px solid var(--agrinex-border-color-split);
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  color: var(--agrinex-primary);
+  border-color: var(--agrinex-primary);
+}
+
+:deep(.el-pagination button) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+  border-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-pagination button:disabled) {
+  color: var(--agrinex-text-disabled);
+}
+
+:deep(.el-select) {
+  background: var(--agrinex-bg-card);
+}
+
+:deep(.el-input__wrapper) {
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color);
+  box-shadow: 0 0 0 1px var(--agrinex-border-color) inset;
+}
+
+:deep(.el-input__inner) {
+  color: var(--agrinex-text-primary);
+  background: transparent;
+}
+
+:deep(.el-loading-mask) {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+:deep(.el-statistic__content) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-statistic__title) {
+  color: var(--agrinex-text-secondary);
+}
+
+:deep(.el-tag) {
+  border-color: var(--agrinex-border-color);
+}
+
+:deep(.el-descriptions__header) {
+  background: var(--agrinex-bg-secondary);
+}
+
+:deep(.el-descriptions__body .el-descriptions__table) {
+  border-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-descriptions__body .el-descriptions__table .el-descriptions__cell) {
+  border-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-descriptions-item__label) {
+  background: var(--agrinex-bg-secondary);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-descriptions-item__content) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-text) {
+  color: var(--agrinex-text-secondary);
+}
+
+:deep(.el-text.is-primary) {
+  color: var(--agrinex-primary);
+}
+
+:deep(.el-progress-bar__outer) {
+  background-color: var(--agrinex-bg-tertiary);
+}
+
+/* 修复下拉框颜色问题 */
+:deep(.el-select-dropdown) {
+  background: var(--agrinex-bg-card) !important;
+  border-color: var(--agrinex-border-color-split) !important;
+  box-shadow: var(--agrinex-shadow-medium) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item) {
+  color: var(--agrinex-text-primary) !important;
+  background: transparent !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item:hover) {
+  background: var(--agrinex-bg-hover) !important;
+  color: var(--agrinex-text-primary) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item.is-selected) {
+  color: var(--agrinex-primary) !important;
+  background: var(--agrinex-bg-active) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item.is-disabled) {
+  color: var(--agrinex-text-disabled) !important;
+  background: transparent !important;
+}
+
+/* 修复分页下拉框 */
+:deep(.el-pagination .el-select .el-select-dropdown) {
+  background: var(--agrinex-bg-card) !important;
+  border-color: var(--agrinex-border-color-split) !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item) {
+  color: var(--agrinex-text-primary) !important;
+  background: transparent !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item:hover) {
+  background: var(--agrinex-bg-hover) !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item.is-selected) {
+  color: var(--agrinex-primary) !important;
+  background: var(--agrinex-bg-active) !important;
+}
+
+/* 修复所有 Element Plus 下拉菜单 */
+:deep(.el-dropdown-menu) {
+  background: var(--agrinex-bg-card) !important;
+  border-color: var(--agrinex-border-color-split) !important;
+  box-shadow: var(--agrinex-shadow-medium) !important;
+}
+
+:deep(.el-dropdown-menu .el-dropdown-menu__item) {
+  color: var(--agrinex-text-primary) !important;
+}
+
+:deep(.el-dropdown-menu .el-dropdown-menu__item:hover) {
+  background: var(--agrinex-bg-hover) !important;
+  color: var(--agrinex-text-primary) !important;
+}
+
+:deep(.el-dropdown-menu .el-dropdown-menu__item:focus) {
+  background: var(--agrinex-bg-hover) !important;
+  color: var(--agrinex-text-primary) !important;
 }
 </style>

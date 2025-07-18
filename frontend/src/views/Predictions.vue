@@ -177,11 +177,16 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import { predictionsApi, type PredictionOption, type PredictionPoint } from '@/api/predictions'
 import { deviceApi } from '@/api'
+import { useThemeStore } from '@/stores/theme'
 import dayjs from 'dayjs'
 import type { Device } from '@/types'
 
 // 注册 ECharts 组件
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+
+// 路由和主题
+const router = useRouter()
+const themeStore = useThemeStore()
 
 // 定义预测相关接口
 interface PredictionForm {
@@ -218,9 +223,6 @@ interface Sensor {
   device_name?: string
   location?: string
 }
-
-// 路由
-const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -292,13 +294,29 @@ const chartOption = computed(() => {
   const selectedSensor = sensors.value.find(s => s.id === predictionForm.sensorId)
   const sensorName = selectedSensor?.name || '传感器'
   
+  // 根据主题设置颜色
+  const isDark = themeStore.isDark
+  const textColor = isDark ? 'rgba(255, 255, 255, 0.85)' : '#262626'
+  const backgroundColor = isDark ? '#1f1f1f' : '#ffffff'
+  const borderColor = isDark ? '#434343' : '#d9d9d9'
+  const primaryColor = '#409EFF'
+  
   return {
+    backgroundColor: backgroundColor,
     title: {
       text: `${sensorName} 预测结果`,
-      left: 'center'
+      left: 'center',
+      textStyle: {
+        color: textColor
+      }
     },
     tooltip: {
       trigger: 'axis',
+      backgroundColor: isDark ? 'rgba(50, 50, 50, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+      borderColor: borderColor,
+      textStyle: {
+        color: textColor
+      },
       formatter: (params: any) => {
         const point = params[0]
         const prediction = predictionResults.value.find(p => p.timestamp === point.data[0])
@@ -314,25 +332,59 @@ const chartOption = computed(() => {
     },
     legend: {
       data: ['预测值', '置信区间'],
-      top: 30
+      top: 30,
+      textStyle: {
+        color: textColor
+      }
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
       top: '15%',
-      containLabel: true
+      containLabel: true,
+      borderColor: borderColor
     },
     xAxis: {
       type: 'time',
       name: '时间',
+      nameTextStyle: {
+        color: textColor
+      },
       axisLabel: {
+        color: textColor,
         formatter: (value: any) => dayjs(value).format('MM-DD HH:mm')
+      },
+      axisLine: {
+        lineStyle: {
+          color: borderColor
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: borderColor
+        }
       }
     },
     yAxis: {
       type: 'value',
-      name: selectedSensor?.sensor_type || '预测值'
+      name: selectedSensor?.sensor_type || '预测值',
+      nameTextStyle: {
+        color: textColor
+      },
+      axisLabel: {
+        color: textColor
+      },
+      axisLine: {
+        lineStyle: {
+          color: borderColor
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: borderColor
+        }
+      }
     },
     series: [
       {
@@ -345,7 +397,7 @@ const chartOption = computed(() => {
         stack: 'confidence-band',
         symbol: 'none',
         areaStyle: {
-          color: 'rgba(64, 158, 255, 0.1)'
+          color: isDark ? 'rgba(64, 158, 255, 0.15)' : 'rgba(64, 158, 255, 0.1)'
         }
       },
       {
@@ -358,7 +410,7 @@ const chartOption = computed(() => {
         stack: 'confidence-band',
         symbol: 'none',
         areaStyle: {
-          color: 'rgba(64, 158, 255, 0.1)'
+          color: isDark ? 'rgba(64, 158, 255, 0.15)' : 'rgba(64, 158, 255, 0.1)'
         }
       },
       {
@@ -367,11 +419,14 @@ const chartOption = computed(() => {
         data: data,
         smooth: true,
         lineStyle: {
-          color: '#409EFF',
+          color: primaryColor,
           width: 2
         },
         symbol: 'circle',
-        symbolSize: 4
+        symbolSize: 4,
+        itemStyle: {
+          color: primaryColor
+        }
       }
     ]
   }
@@ -623,10 +678,15 @@ onMounted(async () => {
 <style scoped>
 .predictions-container {
   padding: 20px;
+  background: var(--agrinex-bg-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 .header-card {
   margin-bottom: 20px;
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
 }
 
 .header-content {
@@ -635,12 +695,14 @@ onMounted(async () => {
 
 .header-content h2 {
   margin: 0 0 10px 0;
-  color: #409EFF;
+  color: var(--agrinex-primary);
+  transition: color 0.3s ease;
 }
 
 .header-content p {
   margin: 0;
-  color: #666;
+  color: var(--agrinex-text-secondary);
+  transition: color 0.3s ease;
 }
 
 .config-card,
@@ -648,12 +710,15 @@ onMounted(async () => {
 .data-table-card,
 .history-card {
   margin-bottom: 20px;
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--agrinex-text-primary);
 }
 
 .chart-container {
@@ -663,14 +728,217 @@ onMounted(async () => {
 .confidence-interval {
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 12px;
-  background: #f5f5f5;
+  background: var(--agrinex-bg-secondary);
+  color: var(--agrinex-text-primary);
   padding: 2px 6px;
   border-radius: 3px;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .pagination-container {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+/* Element Plus 暗色主题适配 - 针对本页面的深度样式 */
+:deep(.el-card) {
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:deep(.el-card__header) {
+  background: var(--agrinex-bg-card);
+  border-bottom-color: var(--agrinex-border-color-split);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-form-item__label) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-select .el-input__wrapper) {
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color);
+  box-shadow: 0 0 0 1px var(--agrinex-border-color) inset;
+}
+
+:deep(.el-select .el-input__inner) {
+  color: var(--agrinex-text-primary);
+  background: transparent;
+}
+
+:deep(.el-button) {
+  border-color: var(--agrinex-border-color);
+  color: var(--agrinex-text-primary);
+  background: var(--agrinex-bg-card);
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button:hover) {
+  background: var(--agrinex-bg-hover);
+}
+
+:deep(.el-button--primary) {
+  background: var(--agrinex-primary);
+  border-color: var(--agrinex-primary);
+  color: #ffffff;
+}
+
+:deep(.el-button--success) {
+  background: var(--agrinex-success);
+  border-color: var(--agrinex-success);
+  color: #ffffff;
+}
+
+:deep(.el-table) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: var(--agrinex-bg-secondary);
+  color: var(--agrinex-text-primary);
+  border-bottom-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-table td.el-table__cell) {
+  border-bottom-color: var(--agrinex-border-color-split);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: var(--agrinex-bg-hover) !important;
+}
+
+:deep(.el-tag) {
+  border-color: var(--agrinex-border-color);
+  background: var(--agrinex-bg-secondary);
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-tag--primary) {
+  background: var(--agrinex-primary);
+  border-color: var(--agrinex-primary);
+  color: #ffffff;
+}
+
+:deep(.el-tag--success) {
+  background: var(--agrinex-success);
+  border-color: var(--agrinex-success);
+  color: #ffffff;
+}
+
+:deep(.el-progress-bar__outer) {
+  background: var(--agrinex-bg-tertiary);
+}
+
+:deep(.el-progress-bar__inner) {
+  background: var(--agrinex-primary);
+}
+
+:deep(.el-pagination) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-pagination .el-pager li) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+  border: 1px solid var(--agrinex-border-color-split);
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  color: var(--agrinex-primary);
+  border-color: var(--agrinex-primary);
+}
+
+:deep(.el-pagination button) {
+  background: var(--agrinex-bg-card);
+  color: var(--agrinex-text-primary);
+  border-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-pagination button:disabled) {
+  color: var(--agrinex-text-disabled);
+  background: var(--agrinex-bg-secondary);
+}
+
+:deep(.el-select-dropdown) {
+  background: var(--agrinex-bg-card);
+  border-color: var(--agrinex-border-color-split);
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item) {
+  color: var(--agrinex-text-primary);
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item:hover) {
+  background: var(--agrinex-bg-hover);
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item.is-selected) {
+  color: var(--agrinex-primary);
+  background: var(--agrinex-bg-active);
+}
+
+:deep(.el-loading-mask) {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+:deep(.el-loading-spinner .el-loading-text) {
+  color: var(--agrinex-text-primary);
+}
+
+/* ECharts 图表暗色主题适配 */
+:deep(.echarts) {
+  background: var(--agrinex-bg-card) !important;
+}
+
+/* 修复下拉框颜色问题 */
+:deep(.el-select-dropdown) {
+  background: var(--agrinex-bg-card) !important;
+  border-color: var(--agrinex-border-color-split) !important;
+  box-shadow: var(--agrinex-shadow-medium) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item) {
+  color: var(--agrinex-text-primary) !important;
+  background: transparent !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item:hover) {
+  background: var(--agrinex-bg-hover) !important;
+  color: var(--agrinex-text-primary) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item.is-selected) {
+  color: var(--agrinex-primary) !important;
+  background: var(--agrinex-bg-active) !important;
+}
+
+:deep(.el-select-dropdown .el-select-dropdown__item.is-disabled) {
+  color: var(--agrinex-text-disabled) !important;
+  background: transparent !important;
+}
+
+/* 修复分页下拉框 */
+:deep(.el-pagination .el-select .el-select-dropdown) {
+  background: var(--agrinex-bg-card) !important;
+  border-color: var(--agrinex-border-color-split) !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item) {
+  color: var(--agrinex-text-primary) !important;
+  background: transparent !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item:hover) {
+  background: var(--agrinex-bg-hover) !important;
+}
+
+:deep(.el-pagination .el-select .el-select-dropdown .el-select-dropdown__item.is-selected) {
+  color: var(--agrinex-primary) !important;
+  background: var(--agrinex-bg-active) !important;
 }
 </style>

@@ -7,3 +7,4 @@ export { alarmApi } from './alarm';
 export { chatApi } from './chat';
 export { userApi } from './user';
 export { deviceTemplatesApi } from './deviceTemplates';
+export { predictionsApi } from './predictions';

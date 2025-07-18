@@ -173,30 +173,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # MCP 服务器
-  mcp-server:
-    build:
-      context: ./mcp-server
-      dockerfile: Dockerfile
-    container_name: agrinex-mcp
-    restart: always
-    environment:
-      DATABASE_URL: mysql+pymysql://agrinex_user:agrinex_password@mysql:3306/agrinex
-      BACKEND_URL: http://backend:8000
-      PORT: 3000
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-      - mysql
-    networks:
-      - agrinex-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # Nginx 反向代理 - 统一入口，解决CORS问题
   nginx-proxy:
     image: nginx:alpine

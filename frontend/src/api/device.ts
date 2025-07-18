@@ -18,6 +18,18 @@ export const deviceApi = {
     return http.get(`/api/devices/${id}`);
   },
 
+  // 获取设备传感器列表
+  getDeviceSensors: (id: number): Promise<ApiResponse<Array<{
+    id: number;
+    name: string;
+    sensor_type: string;
+    status: string;
+    unit: string;
+    device_id: number;
+  }>>> => {
+    return http.get(`/api/devices/${id}/sensors`);
+  },
+
   // 创建设备
   createDevice: (data: Partial<Device>): Promise<ApiResponse<Device>> => {
     return http.post('/api/devices', data);

@@ -59,8 +59,14 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/predictions',
     name: 'Predictions',
-    component: () => import('../views/predictions/Index.vue'),
+    component: () => import('../views/Predictions.vue'),
     meta: { requiresAuth: true, title: '预测分析' }
+  },
+  {
+    path: '/predictions/history',
+    name: 'PredictionHistory',
+    component: () => import('../views/predictions/History.vue'),
+    meta: { requiresAuth: true, title: '历史预测记录' }
   },
   {
     path: '/chat',

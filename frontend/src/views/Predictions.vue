@@ -2,8 +2,8 @@
   <div class="predictions-container">
     <el-card class="header-card">
       <div class="header-content">
-        <h2>📊 预测分析</h2>
-        <p>基于历史数据和机器学习模型进行农业预测</p>
+        <h2>📊 时序预测</h2>
+        <p>基于 Prophet 模型进行农业数据时序预测</p>
       </div>
     </el-card>
 
@@ -17,36 +17,54 @@
       
       <el-form :model="predictionForm" :rules="rules" ref="formRef" label-width="120px">
         <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="预测类型" prop="type">
-              <el-select v-model="predictionForm.type" placeholder="选择预测类型">
-                <el-option label="温度预测" value="temperature" />
-                <el-option label="湿度预测" value="humidity" />
-                <el-option label="产量预测" value="yield" />
-                <el-option label="病虫害预测" value="pest" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          
-          <el-col :span="8">
-            <el-form-item label="预测时长" prop="duration">
-              <el-select v-model="predictionForm.duration" placeholder="选择预测时长">
-                <el-option label="1天" value="1d" />
-                <el-option label="3天" value="3d" />
-                <el-option label="7天" value="7d" />
-                <el-option label="30天" value="30d" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          
-          <el-col :span="8">
-            <el-form-item label="设备选择" prop="deviceId">
-              <el-select v-model="predictionForm.deviceId" placeholder="选择设备">
+          <el-col :span="6">
+            <el-form-item label="选择地点" prop="location">
+              <el-select v-model="predictionForm.location" placeholder="请选择地点" @change="onLocationChange" clearable>
+                <el-option label="全部地点" value="" />
                 <el-option
-                  v-for="device in devices"
+                  v-for="location in availableLocations"
+                  :key="location"
+                  :label="location"
+                  :value="location"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="6">
+            <el-form-item label="选择设备" prop="deviceId">
+              <el-select v-model="predictionForm.deviceId" placeholder="请选择设备" @change="onDeviceChange" :disabled="!filteredDevices.length">
+                <el-option
+                  v-for="device in filteredDevices"
                   :key="device.id"
-                  :label="device.name"
+                  :label="`${device.name} (${device.location})`"
                   :value="device.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="6">
+            <el-form-item label="选择传感器" prop="sensorId">
+              <el-select v-model="predictionForm.sensorId" placeholder="请选择传感器" @change="onSensorChange" :disabled="!deviceSensors.length">
+                <el-option
+                  v-for="sensor in deviceSensors"
+                  :key="sensor.id"
+                  :label="`${sensor.name} (${sensor.sensor_type})`"
+                  :value="sensor.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="6">
+            <el-form-item label="预测时长" prop="period">
+              <el-select v-model="predictionForm.period" placeholder="选择预测时长">
+                <el-option
+                  v-for="(config, key) in forecastOptions"
+                  :key="key"
+                  :label="config.description"
+                  :value="key"
                 />
               </el-select>
             </el-form-item>
@@ -55,22 +73,30 @@
         
         <el-form-item>
           <el-button type="primary" @click="generatePrediction" :loading="loading">
+            <el-icon><TrendCharts /></el-icon>
             生成预测
           </el-button>
           <el-button @click="resetForm">重置</el-button>
+          <el-button type="success" @click="goToHistory">
+            <el-icon><Refresh /></el-icon>
+            查看历史预测
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 预测结果 -->
-    <el-card v-if="predictions.length > 0" class="results-card">
+    <!-- 预测结果图表 -->
+    <el-card v-if="predictionResults.length > 0" class="results-card">
       <template #header>
         <div class="card-header">
-          <span>预测结果</span>
-          <el-button type="text" @click="refreshPredictions">
-            <el-icon><Refresh /></el-icon>
-            刷新
-          </el-button>
+          <span>预测结果图表</span>
+          <div>
+            <el-tag type="success">{{ predictionInfo.period_description }}</el-tag>
+            <el-button type="text" @click="refreshCurrentPrediction">
+              <el-icon><Refresh /></el-icon>
+              刷新本次预测
+            </el-button>
+          </div>
         </div>
       </template>
       
@@ -81,348 +107,516 @@
           autoresize
         />
       </div>
-      
-      <el-table :data="predictions" style="width: 100%; margin-top: 20px">
-        <el-table-column prop="predict_ts" label="时间" width="180">
-          <template #default="scope">
-            {{ formatDate(scope.row.predict_ts) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="sensor_id" label="传感器ID" width="120" />
-        <el-table-column prop="yhat" label="预测值" width="120">
-          <template #default="scope">
-            {{ scope.row.yhat.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="置信区间" width="120">
-          <template #default="scope">
-            {{ scope.row.yhat_lower.toFixed(2) }} - {{ scope.row.yhat_upper.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="generated_at" label="生成时间" width="180">
-          <template #default="scope">
-            {{ formatDate(scope.row.generated_at) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150">
-          <template #default="scope">
-            <el-button type="text" size="small" @click="viewDetails(scope.row)">
-              详情
-            </el-button>
-            <el-button type="text" size="small" @click="exportData(scope.row)">
-              导出
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
     </el-card>
 
-    <!-- 历史预测 -->
-    <el-card class="history-card">
+    <!-- 预测数据表格 -->
+    <el-card v-if="predictionResults.length > 0" class="data-table-card">
       <template #header>
         <div class="card-header">
-          <span>历史预测</span>
+          <span>预测数据详情 (共 {{ predictionResults.length }} 个预测点)</span>
+          <el-button type="primary" size="small" @click="exportPredictionData">
+            <el-icon><Download /></el-icon>
+            导出数据
+          </el-button>
         </div>
       </template>
       
-      <el-table :data="historicalPredictions" style="width: 100%">
-        <el-table-column prop="created_at" label="创建时间" width="180">
+      <el-table :data="paginatedResults" style="width: 100%">
+        <el-table-column prop="timestamp" label="预测时间" width="180">
           <template #default="scope">
-            {{ formatDate(scope.row.created_at) }}
+            {{ formatDateTime(scope.row.timestamp) }}
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="120" />
-        <el-table-column prop="duration" label="时长" width="100" />
-        <el-table-column prop="accuracy" label="准确率" width="120">
+        <el-table-column prop="yhat" label="预测值" width="120">
+          <template #default="scope">
+            <el-tag type="primary">{{ scope.row.yhat.toFixed(3) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="置信区间" width="200">
+          <template #default="scope">
+            <span class="confidence-interval">
+              {{ scope.row.yhat_lower.toFixed(3) }} ~ {{ scope.row.yhat_upper.toFixed(3) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="置信度" width="120">
           <template #default="scope">
             <el-progress
-              :percentage="scope.row.accuracy"
+              :percentage="calculateConfidence(scope.row)"
               :stroke-width="8"
               :show-text="false"
             />
-            <span style="margin-left: 10px">{{ scope.row.accuracy }}%</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150">
-          <template #default="scope">
-            <el-button type="text" size="small" @click="viewHistory(scope.row)">
-              查看
-            </el-button>
-            <el-button type="text" size="small" @click="downloadReport(scope.row)">
-              下载报告
-            </el-button>
           </template>
         </el-table-column>
       </el-table>
+      
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="predictionResults.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-} from 'echarts/components'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { Refresh, TrendCharts, Download } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
-import { predictionsApi, devicesApi } from '@/api'
-import { formatDate } from '@/utils'
-import type { Device, Prediction } from '@/types'
+import { use } from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import { predictionsApi, type PredictionOption, type PredictionPoint } from '@/api/predictions'
+import { deviceApi } from '@/api'
+import dayjs from 'dayjs'
+import type { Device } from '@/types'
 
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-])
+// 注册 ECharts 组件
+use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
-// 表单相关
-const formRef = ref()
-const predictionForm = ref({
-  type: '',
-  duration: '',
-  deviceId: null as number | null
-})
-
-const rules = {
-  type: [{ required: true, message: '请选择预测类型', trigger: 'change' }],
-  duration: [{ required: true, message: '请选择预测时长', trigger: 'change' }],
-  deviceId: [{ required: true, message: '请选择设备', trigger: 'change' }]
+// 定义预测相关接口
+interface PredictionForm {
+  location: string
+  deviceId: number | null
+  sensorId: number | null
+  period: string
 }
 
-// 数据相关
+interface PredictionResult {
+  timestamp: string
+  yhat: number
+  yhat_lower: number
+  yhat_upper: number
+}
+
+interface PredictionResponse {
+  forecast?: PredictionResult[]
+  period_description: string
+  sensor_id: number
+}
+
+interface ForecastOption {
+  description: string
+  periods: number
+  frequency: string
+}
+
+interface Sensor {
+  id: number
+  name: string
+  sensor_type: string
+  device_id: number
+  device_name?: string
+  location?: string
+}
+
+// 路由
+const router = useRouter()
+
+// 响应式数据
 const loading = ref(false)
 const devices = ref<Device[]>([])
-const predictions = ref<Prediction[]>([])
-const historicalPredictions = ref<Prediction[]>([])
+const sensors = ref<Sensor[]>([])
+const predictionResults = ref<PredictionResult[]>([])
+const forecastOptions = ref<Record<string, ForecastOption>>({})
+const predictionInfo = ref<Partial<PredictionResponse>>({})
+const formRef = ref<FormInstance>()
 
-// 图表配置
+// 分页相关
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+const predictionForm: PredictionForm = reactive({
+  location: '',
+  deviceId: null,
+  sensorId: null,
+  period: '24h'
+})
+
+// 表单验证规则
+const rules = {
+  sensorId: [{ required: true, message: '请选择传感器', trigger: 'change' }],
+  period: [{ required: true, message: '请选择预测时长', trigger: 'change' }]
+}
+
+// 可用字段
+const availableFields = ref<string[]>(['numeric_value', 'temperature', 'humidity', 'soil_moisture', 'ph', 'light_intensity'])
+
+// 计算属性 - 层次筛选
+const availableLocations = computed(() => {
+  const locations = devices.value.map(device => device.location).filter(Boolean)
+  return [...new Set(locations)]
+})
+
+const filteredDevices = computed(() => {
+  if (!predictionForm.location) {
+    return devices.value
+  }
+  return devices.value.filter(device => device.location === predictionForm.location)
+})
+
+const deviceSensors = computed(() => {
+  if (!predictionForm.deviceId) {
+    return []
+  }
+  return sensors.value.filter(sensor => sensor.device_id === predictionForm.deviceId)
+})
+
+// 计算属性
+const paginatedResults = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return predictionResults.value.slice(start, end)
+})
+
+// 图表选项
 const chartOption = computed(() => {
-  if (predictions.value.length === 0) return {}
+  if (predictionResults.value.length === 0) {
+    return {}
+  }
   
-  const data = predictions.value.map(p => [p.predict_ts, p.yhat])
-  const confidenceData = predictions.value.map(p => [p.predict_ts, (p.yhat_upper - p.yhat_lower) / 2])
+  const data = predictionResults.value.map(p => [p.timestamp, p.yhat])
+  const upperBand = predictionResults.value.map(p => [p.timestamp, p.yhat_upper])
+  const lowerBand = predictionResults.value.map(p => [p.timestamp, p.yhat_lower])
+  
+  // 获取选中传感器的信息用于图表标题
+  const selectedSensor = sensors.value.find(s => s.id === predictionForm.sensorId)
+  const sensorName = selectedSensor?.name || '传感器'
   
   return {
     title: {
-      text: '预测趋势图',
+      text: `${sensorName} 预测结果`,
       left: 'center'
     },
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
-        const time = formatDate(params[0].axisValue)
-        let content = `${time}<br/>`
-        params.forEach((param: any) => {
-          content += `${param.seriesName}: ${param.value[1]}<br/>`
-        })
-        return content
+        const point = params[0]
+        const prediction = predictionResults.value.find(p => p.timestamp === point.data[0])
+        if (prediction) {
+          return `
+            时间: ${dayjs(point.data[0]).format('YYYY-MM-DD HH:mm:ss')}<br/>
+            预测值: ${prediction.yhat.toFixed(3)}<br/>
+            置信区间: ${prediction.yhat_lower.toFixed(3)} ~ ${prediction.yhat_upper.toFixed(3)}
+          `
+        }
+        return `时间: ${dayjs(point.data[0]).format('YYYY-MM-DD HH:mm:ss')}<br/>预测值: ${point.data[1].toFixed(3)}`
       }
     },
     legend: {
-      data: ['预测值', '置信度'],
+      data: ['预测值', '置信区间'],
       top: 30
     },
     grid: {
-      top: 80,
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '15%',
       containLabel: true
     },
     xAxis: {
       type: 'time',
-      boundaryGap: false
+      name: '时间',
+      axisLabel: {
+        formatter: (value: any) => dayjs(value).format('MM-DD HH:mm')
+      }
     },
-    yAxis: [
+    yAxis: {
+      type: 'value',
+      name: selectedSensor?.sensor_type || '预测值'
+    },
+    series: [
       {
-        type: 'value',
-        name: '预测值',
-        position: 'left'
+        name: '置信区间',
+        type: 'line',
+        data: upperBand,
+        lineStyle: {
+          opacity: 0
+        },
+        stack: 'confidence-band',
+        symbol: 'none',
+        areaStyle: {
+          color: 'rgba(64, 158, 255, 0.1)'
+        }
       },
       {
-        type: 'value',
-        name: '置信度(%)',
-        position: 'right',
-        min: 0,
-        max: 100
-      }
-    ],
-    series: [
+        name: '置信区间下界',
+        type: 'line',
+        data: lowerBand,
+        lineStyle: {
+          opacity: 0
+        },
+        stack: 'confidence-band',
+        symbol: 'none',
+        areaStyle: {
+          color: 'rgba(64, 158, 255, 0.1)'
+        }
+      },
       {
         name: '预测值',
         type: 'line',
         data: data,
         smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
         lineStyle: {
+          color: '#409EFF',
           width: 2
-        }
-      },
-      {
-        name: '置信度',
-        type: 'line',
-        yAxisIndex: 1,
-        data: confidenceData,
-        smooth: true,
-        symbol: 'diamond',
-        symbolSize: 4,
-        lineStyle: {
-          width: 2,
-          type: 'dashed'
-        }
+        },
+        symbol: 'circle',
+        symbolSize: 4
       }
     ]
   }
 })
 
-// 获取设备列表
-const fetchDevices = async () => {
+// 方法
+const loadDevices = async () => {
   try {
-    const response = await devicesApi.getDevices()
+    const response = await deviceApi.getDevices()
     devices.value = response.data || []
-  } catch (error) {
-    ElMessage.error('获取设备列表失败')
+    console.log('设备加载成功:', devices.value.length, '个设备')
+  } catch (error: any) {
+    console.error('加载设备失败:', error)
+    if (error.response?.status === 401) {
+      ElMessage.error('认证已过期，请重新登录')
+    } else {
+      ElMessage.error('加载设备列表失败: ' + (error.message || '未知错误'))
+    }
+    devices.value = []
   }
 }
 
-// 获取预测列表
-const fetchPredictions = async () => {
+const loadSensors = async () => {
   try {
-    const response = await predictionsApi.getPredictions()
-    predictions.value = response.data || []
-  } catch (error) {
-    ElMessage.error('获取预测数据失败')
+    const allSensors: Sensor[] = []
+    for (const device of devices.value) {
+      try {
+        const response = await deviceApi.getDeviceSensors(Number(device.id))
+        if (response.data) {
+          const deviceSensors = response.data.map((sensor: any) => ({
+            ...sensor,
+            device_id: device.id,
+            device_name: device.name,
+            location: device.location
+          }))
+          allSensors.push(...deviceSensors)
+        }
+      } catch (error: any) {
+        console.error(`加载设备 ${device.id} 的传感器失败:`, error)
+        if (error.response?.status !== 404) {
+          // 404是正常的，说明该设备没有传感器
+          console.warn(`设备 ${device.name} 可能没有传感器`)
+        }
+      }
+    }
+    sensors.value = allSensors
+    console.log('传感器加载成功:', sensors.value.length, '个传感器')
+  } catch (error: any) {
+    console.error('加载传感器失败:', error)
+    ElMessage.error('加载传感器列表失败: ' + (error.message || '未知错误'))
+    sensors.value = []
   }
 }
 
-// 获取历史预测
-const fetchHistoricalPredictions = async () => {
+const loadForecastOptions = async () => {
   try {
-    // 使用同样的API获取历史数据
-    const response = await predictionsApi.getPredictions()
-    historicalPredictions.value = response.data || []
+    const response = await predictionsApi.getForecastOptions()
+    if (response.success && response.period_configs) {
+      forecastOptions.value = response.period_configs
+    } else {
+      // 使用默认选项
+      forecastOptions.value = {
+        '30min': { description: '未来30分钟（每分钟一个预测点）', periods: 30, frequency: '1T' },
+        '1h': { description: '未来1小时（每分钟一个预测点）', periods: 60, frequency: '2T' },
+        '2h': { description: '未来2小时（每5分钟一个预测点）', periods: 120, frequency: '5T' },
+        '6h': { description: '未来6小时（每10分钟一个预测点）', periods: 360, frequency: '15T' },
+        '12h': { description: '未来12小时（每15分钟一个预测点）', periods: 720, frequency: '30T' },
+        '24h': { description: '未来24小时（每30分钟一个预测点）', periods: 1440, frequency: '1H' },
+        '2d': { description: '未来2天（每小时一个预测点）', periods: 2880, frequency: '2H' },
+        '5d': { description: '未来5天（每2小时一个预测点）', periods: 7200, frequency: '6H' },
+        '7d': { description: '未来7天（每2小时一个预测点）', periods: 10080, frequency: '12H' }
+      }
+    }
   } catch (error) {
-    ElMessage.error('获取历史预测失败')
+    console.error('加载预测选项失败:', error)
+    // 使用默认选项
+    forecastOptions.value = {
+      '30min': { description: '未来30分钟（每分钟一个预测点）', periods: 30, frequency: '1T' },
+      '1h': { description: '未来1小时（每分钟一个预测点）', periods: 60, frequency: '2T' },
+      '2h': { description: '未来2小时（每5分钟一个预测点）', periods: 120, frequency: '5T' },
+      '6h': { description: '未来6小时（每10分钟一个预测点）', periods: 360, frequency: '15T' },
+      '12h': { description: '未来12小时（每15分钟一个预测点）', periods: 720, frequency: '30T' },
+      '24h': { description: '未来24小时（每30分钟一个预测点）', periods: 1440, frequency: '1H' },
+      '2d': { description: '未来2天（每小时一个预测点）', periods: 2880, frequency: '2H' },
+      '5d': { description: '未来5天（每2小时一个预测点）', periods: 7200, frequency: '6H' },
+      '7d': { description: '未来7天（每2小时一个预测点）', periods: 10080, frequency: '12H' }
+    }
   }
 }
 
-// 生成预测
+// 层次筛选的处理函数
+const onLocationChange = () => {
+  predictionForm.deviceId = null
+  predictionForm.sensorId = null
+}
+
+const onDeviceChange = () => {
+  predictionForm.sensorId = null
+}
+
+const onSensorChange = (sensorId: number) => {
+  console.log('选择传感器:', sensorId)
+}
+
 const generatePrediction = async () => {
   if (!formRef.value) return
   
   try {
-    await formRef.value.validate()
-    loading.value = true
-    
-    const payload = {
-      sensor_id: predictionForm.value.deviceId || 1,
-      periods: predictionForm.value.duration === '1d' ? 24 : 
-               predictionForm.value.duration === '3d' ? 72 : 
-               predictionForm.value.duration === '7d' ? 168 : 720,
-      freq: 'H'
-    }
-    await predictionsApi.triggerPrediction(payload)
-    ElMessage.success('预测生成成功')
-    
-    await fetchPredictions()
-    await fetchHistoricalPredictions()
+    const valid = await formRef.value.validate()
+    if (!valid) return
   } catch (error) {
-    ElMessage.error('生成预测失败')
+    return
+  }
+
+  loading.value = true
+  try {
+    const response = await predictionsApi.triggerSensorPrediction(predictionForm.sensorId!, {
+      field: 'numeric_value', // 固定使用 numeric_value 字段
+      period: predictionForm.period
+    })
+    
+    if (response.success) {
+      ElMessage.success(response.message || '预测任务已提交')
+      // 等待一段时间后获取预测结果
+      setTimeout(async () => {
+        try {
+          const latestResponse = await predictionsApi.getLatestSensorPredictions(predictionForm.sensorId!)
+          if (latestResponse.success && latestResponse.data) {
+            predictionResults.value = latestResponse.data.map(item => ({
+              timestamp: item.predict_ts,
+              yhat: item.yhat,
+              yhat_lower: item.yhat_lower,
+              yhat_upper: item.yhat_upper
+            }))
+            
+            // 获取选中传感器的信息
+            const selectedSensor = sensors.value.find(s => s.id === predictionForm.sensorId)
+            predictionInfo.value = {
+              period_description: response.period || predictionForm.period,
+              sensor_id: predictionForm.sensorId!
+            }
+            currentPage.value = 1
+            ElMessage.success('预测结果已加载')
+          }
+        } catch (error) {
+          console.error('获取预测结果失败:', error)
+          ElMessage.warning('预测任务已提交，请稍后刷新查看结果')
+        }
+      }, 3000)
+    }
+  } catch (error: any) {
+    console.error('预测生成错误:', error)
+    ElMessage.error(error.response?.data?.message || '预测生成失败')
   } finally {
     loading.value = false
   }
 }
 
-// 重置表单
+const goToHistory = () => {
+  router.push('/predictions/history')
+}
+
+const refreshCurrentPrediction = () => {
+  if (predictionForm.sensorId && predictionForm.period) {
+    generatePrediction()
+  }
+}
+
+const exportPredictionData = () => {
+  try {
+    const data = predictionResults.value.map(p => ({
+      时间: formatDateTime(p.timestamp),
+      预测值: p.yhat.toFixed(3),
+      下界: p.yhat_lower.toFixed(3),
+      上界: p.yhat_upper.toFixed(3)
+    }))
+    
+    const csv = [
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `prediction_${dayjs().format('YYYY-MM-DD_HH-mm-ss')}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    ElMessage.success('数据导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('数据导出失败')
+  }
+}
+
+const calculateConfidence = (prediction: PredictionResult): number => {
+  const range = prediction.yhat_upper - prediction.yhat_lower
+  const confidence = Math.max(0, Math.min(100, 100 - (range / prediction.yhat) * 100))
+  return Math.round(confidence)
+}
+
+const formatDateTime = (dateTime: string): string => {
+  return dayjs(dateTime).format('YYYY-MM-DD HH:mm:ss')
+}
+
+const handleSizeChange = (val: number) => {
+  pageSize.value = val
+  currentPage.value = 1
+}
+
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val
+}
+
 const resetForm = () => {
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  predictionForm.location = ''
+  predictionForm.deviceId = null
+  predictionForm.sensorId = null
+  predictionForm.period = '24h'
+  predictionResults.value = []
+  predictionInfo.value = {}
+  currentPage.value = 1
 }
 
-// 刷新预测
-const refreshPredictions = async () => {
-  await fetchPredictions()
-  ElMessage.success('数据已刷新')
-}
-
-// 状态处理
-const getStatusType = (status: string) => {
-  const statusMap: Record<string, string> = {
-    'completed': 'success',
-    'running': 'warning',
-    'failed': 'danger',
-    'pending': 'info'
-  }
-  return statusMap[status] || 'info'
-}
-
-const getStatusText = (status: string) => {
-  const statusMap: Record<string, string> = {
-    'completed': '已完成',
-    'running': '运行中',
-    'failed': '失败',
-    'pending': '待处理'
-  }
-  return statusMap[status] || status
-}
-
-// 查看详情
-const viewDetails = (prediction: Prediction) => {
-  ElMessageBox.alert(
-    `预测ID: ${prediction.id}\n传感器ID: ${prediction.sensor_id}\n预测值: ${prediction.yhat.toFixed(2)}\n置信区间: ${prediction.yhat_lower.toFixed(2)} - ${prediction.yhat_upper.toFixed(2)}`,
-    '预测详情',
-    {
-      confirmButtonText: '确定'
-    }
-  )
-}
-
-// 导出数据
-const exportData = (prediction: Prediction) => {
-  const data = JSON.stringify(prediction, null, 2)
-  const blob = new Blob([data], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `prediction_${prediction.id}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('数据导出成功')
-}
-
-// 查看历史
-const viewHistory = (prediction: Prediction) => {
-  ElMessage.info('查看历史功能待开发')
-}
-
-// 下载报告
-const downloadReport = (prediction: Prediction) => {
-  ElMessage.info('下载报告功能待开发')
-}
-
+// 组件挂载时初始化
 onMounted(async () => {
-  await fetchDevices()
-  await fetchPredictions()
-  await fetchHistoricalPredictions()
+  // 检查认证状态
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+  
+  try {
+    await loadDevices()
+    await loadSensors()
+    loadForecastOptions()
+  } catch (error) {
+    console.error('初始化失败:', error)
+    ElMessage.error('页面初始化失败，请刷新重试')
+  }
 })
 </script>
 
@@ -441,16 +635,17 @@ onMounted(async () => {
 
 .header-content h2 {
   margin: 0 0 10px 0;
-  color: var(--agrinex-text-primary);
+  color: #409EFF;
 }
 
 .header-content p {
   margin: 0;
-  color: var(--agrinex-text-secondary);
+  color: #666;
 }
 
 .config-card,
 .results-card,
+.data-table-card,
 .history-card {
   margin-bottom: 20px;
 }
@@ -462,20 +657,20 @@ onMounted(async () => {
 }
 
 .chart-container {
-  width: 100%;
-  height: 400px;
+  margin: 20px 0;
 }
 
-.el-card {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+.confidence-interval {
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
 }
 
-.el-table {
-  border-radius: 8px;
-}
-
-.el-progress {
-  display: inline-block;
-  width: 80px;
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 </style>

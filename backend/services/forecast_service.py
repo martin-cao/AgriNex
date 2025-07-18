@@ -4,8 +4,36 @@ from models.prediction import Prediction
 from extensions import db
 from prophet import Prophet
 import pandas as pd
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 class ForecastService:
+    # 预测时长配置字典
+    FORECAST_PERIODS = {
+        '30min': {'periods': 30, 'freq': 'T'},      # 30分钟，每分钟一个点
+        '1h': {'periods': 60, 'freq': 'T'},         # 1小时，每分钟一个点
+        '2h': {'periods': 24, 'freq': '5T'},        # 2小时，每5分钟一个点
+        '6h': {'periods': 36, 'freq': '10T'},       # 6小时，每10分钟一个点
+        '12h': {'periods': 48, 'freq': '15T'},      # 12小时，每15分钟一个点
+        '24h': {'periods': 48, 'freq': '30T'},      # 24小时，每30分钟一个点
+        '2d': {'periods': 48, 'freq': 'H'},         # 2天，每小时一个点
+        '5d': {'periods': 60, 'freq': '2H'},        # 5天，每2小时一个点
+        '7d': {'periods': 84, 'freq': '2H'},        # 7天，每2小时一个点
+    }
+    
+    @staticmethod
+    def get_forecast_options():
+        """获取可用的预测时长选项"""
+        return list(ForecastService.FORECAST_PERIODS.keys())
+    
+    @staticmethod
+    def validate_forecast_period(period_key):
+        """验证预测时长参数"""
+        return period_key in ForecastService.FORECAST_PERIODS
     @staticmethod
     def get_numeric_fields():
         """
@@ -71,8 +99,15 @@ class ForecastService:
         return df.drop_duplicates().sort_values('ds') if not df.empty else df
 
     @staticmethod
-    def predict(sensor_id, field='numeric_value', periods=24, freq='H'):
-        """传感器级别预测"""
+    def predict(sensor_id, field='numeric_value', period_key='24h'):
+        """传感器级别预测（同步版本，兼容性保留）"""
+        if not ForecastService.validate_forecast_period(period_key):
+            return None, f"不支持的预测周期: {period_key}"
+            
+        config = ForecastService.FORECAST_PERIODS[period_key]
+        periods = config['periods']
+        freq = config['freq']
+        
         df = ForecastService.get_history(sensor_id, field)
         if df.empty or len(df) < 10:
             return None, "历史数据不足，无法预测"
@@ -86,20 +121,77 @@ class ForecastService:
         result = [
             {
                 'timestamp': row['ds'].isoformat(),
-                'yhat': row['yhat'],
-                'yhat_lower': row['yhat_lower'],
-                'yhat_upper': row['yhat_upper']
+                'yhat': float(row['yhat']),
+                'yhat_lower': float(row['yhat_lower']),
+                'yhat_upper': float(row['yhat_upper'])
             }
             for _, row in forecast.iterrows()
         ]
         return result, None
 
     @staticmethod
-    def predict_by_device(device_id, field='numeric_value', periods=24, freq='H'):
+    async def predict_async(sensor_id, field='numeric_value', period_key='24h'):
+        """异步预测方法，避免阻塞主进程"""
+        logger.info(f"开始异步预测 - 传感器: {sensor_id}, 周期: {period_key}")
+        
+        if not ForecastService.validate_forecast_period(period_key):
+            return None, f"不支持的预测周期: {period_key}"
+        
+        try:
+            # 在线程池中执行CPU密集型的Prophet预测
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                result, error = await loop.run_in_executor(
+                    executor,
+                    ForecastService.predict,
+                    sensor_id, field, period_key
+                )
+            
+            if error:
+                logger.error(f"异步预测失败 - 传感器: {sensor_id}, 错误: {error}")
+                return None, error
+            
+            # 异步保存预测结果
+            await ForecastService._save_predictions_async(sensor_id, field, result)
+            
+            logger.info(f"异步预测完成 - 传感器: {sensor_id}, 预测点数: {len(result) if result else 0}")
+            return result, None
+            
+        except Exception as e:
+            logger.error(f"异步预测异常 - 传感器: {sensor_id}, 错误: {str(e)}")
+            return None, str(e)
+    
+    @staticmethod
+    async def _save_predictions_async(sensor_id, field, forecast_list):
+        """异步保存预测结果"""
+        if not forecast_list:
+            return
+            
+        try:
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                await loop.run_in_executor(
+                    executor,
+                    ForecastService.save_predictions,
+                    sensor_id, field, forecast_list
+                )
+        except Exception as e:
+            logger.error(f"异步保存预测结果失败: {str(e)}")
+            raise
+
+    @staticmethod
+    def predict_by_device(device_id, field='numeric_value', period_key='24h'):
         """
         设备级别预测（聚合设备下所有传感器数据）
-        用于支持现有的设备预测API
+        支持新的周期配置
         """
+        if not ForecastService.validate_forecast_period(period_key):
+            return None, f"不支持的预测周期: {period_key}"
+            
+        config = ForecastService.FORECAST_PERIODS[period_key]
+        periods = config['periods']
+        freq = config['freq']
+        
         df = ForecastService.get_history_by_device(device_id, field)
         if df.empty or len(df) < 10:
             return None, "设备历史数据不足，无法预测"
@@ -113,9 +205,9 @@ class ForecastService:
         result = [
             {
                 'timestamp': row['ds'].isoformat(),
-                'yhat': row['yhat'],
-                'yhat_lower': row['yhat_lower'],
-                'yhat_upper': row['yhat_upper']
+                'yhat': float(row['yhat']),
+                'yhat_lower': float(row['yhat_lower']),
+                'yhat_upper': float(row['yhat_upper'])
             }
             for _, row in forecast.iterrows()
         ]

@@ -1,5 +1,9 @@
 # AgriNex - 农业物联网数据管理平台
 
+> [!NOTE]
+>
+> This is an course-design project for **2024 Fall** _Python Programming_ by student ID: `547a1ec97aff5d1cc4d5c510fcd126a8`, `7f7948923fe752064204c07ee5e6524e`, `4772800f9c548b59f5e738f3af046459`, `c7ca6a04c927df019ffb5e48374635f7` (MD5 Hash).
+
 基于 Flask + Vue.js + MCP 的农业物联网数据采集与可视化平台，支持传感器数据收集、实时监控、智能告警和数据分析。
 
 主要特性：

@@ -8,6 +8,8 @@ services:
     image: mysql:8.0
     container_name: agrinex-mysql
     restart: always
+    env_file:
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: agrinex_root_password
       MYSQL_DATABASE: agrinex
@@ -32,6 +34,8 @@ services:
     image: minio/minio:latest
     container_name: agrinex-minio
     restart: always
+    env_file:
+      - .env
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
@@ -55,6 +59,8 @@ services:
     image: redis:7-alpine
     container_name: agrinex-redis
     restart: always
+    env_file:
+      - .env
     ports:
       - "6379:6379"
     volumes:
@@ -73,6 +79,8 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: agrinex-mosquitto
     restart: always
+    env_file:
+      - .env
     ports:
       - "1883:1883"
       - "9011:9001"
@@ -95,6 +103,8 @@ services:
       dockerfile: Dockerfile
     container_name: agrinex-backend
     restart: always
+    env_file:
+      - .env
     environment:
       # Flask 配置
       FLASK_ENV: production
@@ -162,6 +172,8 @@ services:
       dockerfile: Dockerfile
     container_name: agrinex-frontend
     restart: always
+    env_file:
+      - .env
     environment:
       VITE_API_BASE_URL: "/api"
       VITE_WS_BASE_URL: ""
@@ -184,6 +196,8 @@ services:
     image: nginx:alpine
     container_name: agrinex-nginx-proxy
     restart: always
+    env_file:
+      - .env
     ports:
       - "80:80"
       - "443:443"

@@ -154,6 +154,18 @@ export interface DashboardStats {
   last_updated: string;
 }
 
+export interface SystemHealth {
+  cpu_usage: number;
+  memory_usage: number;
+  disk_usage: number;
+  network_status: 'good' | 'warning' | 'error';
+  database_status: string;
+  mqtt_status: string;
+  api_response_time: number;
+  last_updated: string;
+}
+
+
 // 表格相关类型
 export interface TableColumn {
   title: string;

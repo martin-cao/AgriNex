@@ -2,27 +2,47 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { dashboardApi } from '../api';
-import type { DashboardStats } from '../types';
+import type { DashboardStats, SystemHealth } from '../types';
 
 export const useDashboardStore = defineStore('dashboard', () => {
   const stats = ref<DashboardStats>({
-    total_devices: 0,
-    online_devices: 0,
-    active_alerts: 0,
-    today_data_points: 0
+    devices: {
+      total: 0,
+      online: 0,
+      offline: 0,
+      error: 0,
+    },
+    sensors: {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      error: 0,
+    },
+    alarms: {
+      total: 0,
+      active: 0,
+      resolved: 0,
+      critical: 0,
+    },
+    data_points: 0,
+    last_updated: '',
   });
-  const systemStatus = ref({
-    database: false,
-    mqtt: false,
-    storage: false,
-    prediction: false
+  const systemStatus = ref<SystemHealth>({
+    cpu_usage: 0,
+    memory_usage: 0,
+    disk_usage: 0,
+    network_status: 'good',
+    database_status: 'disconnected',
+    mqtt_status: 'disconnected',
+    api_response_time: 0,
+    last_updated: '',
   });
   const isLoading = ref(false);
 
   const fetchDashboardStats = async () => {
     isLoading.value = true;
     try {
-      const response = await dashboardApi.getDashboardStats();
+      const response = await dashboardApi.getStats();
       if (response.success && response.data) {
         stats.value = response.data;
       }
@@ -35,7 +55,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   const fetchSystemStatus = async () => {
     try {
-      const response = await dashboardApi.getSystemStatus();
+      const response = await dashboardApi.getSystemHealth();
       if (response.success && response.data) {
         systemStatus.value = response.data;
       }

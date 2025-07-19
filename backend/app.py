@@ -87,6 +87,11 @@ def register_blueprints(app):
     app.register_blueprint(sensor_bp, url_prefix='/api/sensors')
     logger.info("Registered sensor blueprint")
 
+    # Dashboard API
+    from controllers.dashboard_controller import dashboard_bp
+    app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    logger.info("Registered dashboard blueprint")
+
     # 预测API
     from controllers.forecast_controller import forecast_bp
     app.register_blueprint(forecast_bp, url_prefix='/api/forecasts')

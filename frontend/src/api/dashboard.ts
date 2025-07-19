@@ -23,6 +23,7 @@ export const dashboardApi = {
       critical: number;
     };
     data_points: number;
+    last_updated: string;
   }>> => {
     return http.get('/api/dashboard/stats');
   },
@@ -79,9 +80,10 @@ export const dashboardApi = {
     memory_usage: number;
     disk_usage: number;
     network_status: 'good' | 'warning' | 'error';
-    database_status: 'connected' | 'disconnected';
-    mqtt_status: 'connected' | 'disconnected';
+    database_status: string;
+    mqtt_status: string;
     api_response_time: number;
+    last_updated: string;
   }>> => {
     return http.get('/api/dashboard/system-health');
   },

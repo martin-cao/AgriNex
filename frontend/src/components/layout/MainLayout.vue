@@ -33,6 +33,11 @@
           <radar-chart-outlined />
           <span>传感器数据</span>
         </a-menu-item>
+
+        <a-menu-item key="media" @click="$router.push('/media')">
+          <picture-outlined />
+          <span>媒体数据</span>
+        </a-menu-item>
         
         <a-menu-item key="alarms" @click="$router.push('/alarms')">
           <bell-outlined />

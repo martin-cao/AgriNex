@@ -45,6 +45,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true, title: '传感器数据' }
   },
   {
+    path: '/media',
+    name: 'Media',
+    component: () => import('../views/media/Index.vue'),
+    meta: { requiresAuth: true, title: '媒体数据' }
+  },
+  {
     path: '/sensors/:id',
     name: 'SensorDetail',
     component: () => import('../views/sensors/Detail.vue'),

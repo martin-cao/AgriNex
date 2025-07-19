@@ -146,4 +146,150 @@ class CameraSensorService:
                 self.logger.warning(f"Unknown command type: {cmd_type}")
                 
         except Exception as e:
-            self.logger.error(f"Error handling control command: {e}")\n    \n    async def _send_camera_data(self, camera_data: Dict[str, Any]):\n        \"\"\"Send camera data via MQTT.\"\"\"\n        try:\n            # Send to appropriate topic based on data type\n            data_type = camera_data.get('type', 'unknown')\n            sensor_id = camera_data.get('sensor_id', 'camera_001')\n            topic = f\"sensors/{sensor_id}/{data_type}\"\n            \n            await self.mqtt_adapter.send_data(topic, camera_data)\n            \n            self.total_transmissions += 1\n            self.logger.debug(f\"Sent {data_type} data to {topic}\")\n            \n        except Exception as e:\n            self.error_count += 1\n            self.logger.error(f\"Error sending camera data: {e}\")\n    \n    async def _automatic_capture_loop(self):\n        \"\"\"Automatic capture loop.\"\"\"\n        self.logger.info(f\"Starting automatic {self.capture_type} capture every {self.capture_interval}s\")\n        \n        try:\n            while self.running and self.auto_capture:\n                try:\n                    if self.capture_type == 'image':\n                        await self.camera_adapter.capture_image()\n                    elif self.capture_type == 'video':\n                        await self.camera_adapter.capture_video(duration=self.video_duration)\n                    \n                    await asyncio.sleep(self.capture_interval)\n                    \n                except asyncio.CancelledError:\n                    self.logger.info(\"Automatic capture cancelled\")\n                    break\n                except Exception as e:\n                    self.logger.error(f\"Error in automatic capture: {e}\")\n                    await asyncio.sleep(5)  # Wait before retry\n                    \n        except Exception as e:\n            self.logger.error(f\"Error in automatic capture loop: {e}\")\n    \n    async def start(self):\n        \"\"\"Start the camera sensor service.\"\"\"\n        try:\n            self.logger.info(\"Starting camera sensor service...\")\n            \n            # Initialize adapters\n            await self.mqtt_adapter.initialize()\n            await self.camera_adapter.initialize()\n            \n            # Start HTTP health service\n            await self.http_service.start()\n            \n            # Set running state\n            self.running = True\n            self.start_time = datetime.now()\n            \n            # Subscribe to control topic\n            client_id = getattr(self.config, 'client_id', 'camera_001')\n            control_topic = f\"sensors/{client_id}/control\"\n            await self.mqtt_adapter.subscribe(control_topic)\n            \n            # Start automatic capture if enabled\n            if self.auto_capture:\n                self.capture_task = asyncio.create_task(self._automatic_capture_loop())\n            \n            self.logger.info(\"Camera sensor service started successfully\")\n            \n            # Keep service running\n            while self.running:\n                await asyncio.sleep(1)\n                \n        except Exception as e:\n            self.logger.error(f\"Error starting camera sensor service: {e}\")\n            raise\n    \n    async def stop(self):\n        \"\"\"Stop the camera sensor service.\"\"\"\n        try:\n            self.logger.info(\"Stopping camera sensor service...\")\n            \n            self.running = False\n            \n            # Cancel automatic capture\n            if self.capture_task and not self.capture_task.done():\n                self.capture_task.cancel()\n                try:\n                    await self.capture_task\n                except asyncio.CancelledError:\n                    pass\n            \n            # Stop HTTP service\n            if self.http_service:\n                await self.http_service.stop()\n            \n            # Cleanup adapters\n            await self.camera_adapter.cleanup()\n            await self.mqtt_adapter.cleanup()\n            \n            self.logger.info(\"Camera sensor service stopped\")\n            \n        except Exception as e:\n            self.logger.error(f\"Error stopping camera sensor service: {e}\")\n    \n    # Manual capture methods\n    async def capture_image_now(self) -> Optional[Dict[str, Any]]:\n        \"\"\"Manually trigger image capture.\"\"\"\n        return await self.camera_adapter.capture_image()\n    \n    async def capture_video_now(self, duration: Optional[int] = None) -> Optional[Dict[str, Any]]:\n        \"\"\"Manually trigger video capture.\"\"\"\n        return await self.camera_adapter.capture_video(duration=duration)\n    \n    def get_status(self) -> Dict[str, Any]:\n        \"\"\"Get service status.\"\"\"\n        uptime = None\n        if self.start_time:\n            uptime = (datetime.now() - self.start_time).total_seconds()\n        \n        camera_stats = self.camera_adapter.get_statistics()\n        mqtt_stats = self.mqtt_adapter.get_statistics() if hasattr(self.mqtt_adapter, 'get_statistics') else {}\n        \n        return {\n            'service_name': 'camera_sensor_service',\n            'running': self.running,\n            'uptime_seconds': uptime,\n            'start_time': self.start_time.isoformat() if self.start_time else None,\n            'configuration': {\n                'capture_interval': self.capture_interval,\n                'capture_type': self.capture_type,\n                'video_duration': self.video_duration,\n                'auto_capture': self.auto_capture\n            },\n            'statistics': {\n                'total_captures': self.total_captures,\n                'total_transmissions': self.total_transmissions,\n                'error_count': self.error_count\n            },\n            'camera_adapter': camera_stats,\n            'mqtt_adapter': mqtt_stats\n        }"
+            self.logger.error(f"Error handling control command: {e}")
+    
+    async def _send_camera_data(self, camera_data: Dict[str, Any]):
+        """
+        Send camera data via MQTT.
+        """
+        try:
+            # Send to appropriate topic based on data type
+            data_type = camera_data.get('type', 'unknown')
+            sensor_id = camera_data.get('sensor_id', 'camera_001')
+            topic = f"sensors/{sensor_id}/{data_type}"
+            
+            await self.mqtt_adapter.send_data(topic, camera_data)
+            
+            self.total_transmissions += 1
+            self.logger.debug(f"Sent {data_type} data to {topic}")
+            
+        except Exception as e:
+            self.error_count += 1
+            self.logger.error(f"Error sending camera data: {e}")
+    
+    async def _automatic_capture_loop(self):
+        """
+        Automatic capture loop.
+        """
+        self.logger.info(f"Starting automatic {self.capture_type} capture every {self.capture_interval}s")
+        
+        try:
+            while self.running and self.auto_capture:
+                try:
+                    if self.capture_type == 'image':
+                        await self.camera_adapter.capture_image()
+                    elif self.capture_type == 'video':
+                        await self.camera_adapter.capture_video(duration=self.video_duration)
+                    
+                    await asyncio.sleep(self.capture_interval)
+                    
+                except asyncio.CancelledError:
+                    self.logger.info("Automatic capture cancelled")
+                    break
+                except Exception as e:
+                    self.logger.error(f"Error in automatic capture: {e}")
+                    await asyncio.sleep(5)  # Wait before retry
+                    
+        except Exception as e:
+            self.logger.error(f"Error in automatic capture loop: {e}")
+    
+    async def start(self):
+        """Start the camera sensor service."""
+        try:
+            self.logger.info("Starting camera sensor service...")
+            
+            # Initialize adapters
+            await self.mqtt_adapter.initialize()
+            await self.camera_adapter.initialize()
+            
+            # Start HTTP health service
+            await self.http_service.start()
+            
+            # Set running state
+            self.running = True
+            self.start_time = datetime.now()
+            
+            # Subscribe to control topic
+            client_id = getattr(self.config, 'client_id', 'camera_001')
+            control_topic = f"sensors/{client_id}/control"
+            await self.mqtt_adapter.subscribe(control_topic)
+            
+            # Start automatic capture if enabled
+            if self.auto_capture:
+                self.capture_task = asyncio.create_task(self._automatic_capture_loop())
+            
+            self.logger.info("Camera sensor service started successfully")
+            
+            # Keep service running
+            while self.running:
+                await asyncio.sleep(1)
+                
+        except Exception as e:
+            self.logger.error(f"Error starting camera sensor service: {e}")
+            raise
+    
+    async def stop(self):
+        """Stop the camera sensor service."""
+        try:
+            self.logger.info("Stopping camera sensor service...")
+            
+            self.running = False
+            
+            # Cancel automatic capture
+            if self.capture_task and not self.capture_task.done():
+                self.capture_task.cancel()
+                try:
+                    await self.capture_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Stop HTTP service
+            if self.http_service:
+                await self.http_service.stop()
+            
+            # Cleanup adapters
+            await self.camera_adapter.cleanup()
+            await self.mqtt_adapter.cleanup()
+            
+            self.logger.info("Camera sensor service stopped")
+            
+        except Exception as e:
+            self.logger.error(f"Error stopping camera sensor service: {e}")
+    
+    # Manual capture methods
+    async def capture_image_now(self) -> Optional[Dict[str, Any]]:
+        """Manually trigger image capture."""
+        return await self.camera_adapter.capture_image()
+    
+    async def capture_video_now(self, duration: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Manually trigger video capture."""
+        return await self.camera_adapter.capture_video(duration=duration)
+    
+    def get_status(self) -> Dict[str, Any]:
+        """Get service status."""
+        uptime = None
+        if self.start_time:
+            uptime = (datetime.now() - self.start_time).total_seconds()
+        
+        camera_stats = self.camera_adapter.get_statistics()
+        mqtt_stats = self.mqtt_adapter.get_statistics() if hasattr(self.mqtt_adapter, 'get_statistics') else {}
+        
+        return {
+            'service_name': 'camera_sensor_service',
+            'running': self.running,
+            'uptime_seconds': uptime,
+            'start_time': self.start_time.isoformat() if self.start_time else None,
+            'configuration': {
+                'capture_interval': self.capture_interval,
+                'capture_type': self.capture_type,
+                'video_duration': self.video_duration,
+                'auto_capture': self.auto_capture
+            },
+            'statistics': {
+                'total_captures': self.total_captures,
+                'total_transmissions': self.total_transmissions,
+                'error_count': self.error_count
+            },
+            'camera_adapter': camera_stats,
+            'mqtt_adapter': mqtt_stats
+        }

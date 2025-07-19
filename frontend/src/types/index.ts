@@ -251,5 +251,18 @@ export interface RegisterForm {
   agreement?: boolean;
 }
 
+// 多媒体读数（图片/视频）
+export interface MediaReading {
+  id: number;
+  sensor_id: number;
+  timestamp: string;
+  data_type: 'image' | 'video';
+  file_format?: string;
+  file_size?: number;
+  bucket_name?: string;
+  object_key?: string;
+  object_url?: string;
+}
+
 // 读数类型（传感器数据的别名）
 export type Reading = SensorData;

@@ -77,10 +77,16 @@ const isDark = computed(() => themeStore.isDark);
 const systemDark = computed(() => themeStore.systemDark);
 
 const currentThemeIcon = computed(() => {
-  if (mode.value === 'auto') {
-    return 'desktop-outlined';
+  switch (mode.value) {
+    case 'light':
+      return 'sun-outlined';
+    case 'dark':
+      return 'moon-outlined';
+    case 'auto':
+      return 'desktop-outlined';
+    default:
+      return 'desktop-outlined';
   }
-  return isDark.value ? 'moon-outlined' : 'sun-outlined';
 });
 
 const currentThemeText = computed(() => {

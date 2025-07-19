@@ -120,6 +120,11 @@ services:
       JWT_SECRET_KEY: jwt-production-secret-change-me
       JWT_ACCESS_TOKEN_EXPIRES: 900
       
+      # 本地LLM Studio API 配置
+      OPENAI_API_KEY: not-needed-but-required
+      OPENAI_BASE_URL: http://host.docker.internal:1234/v1
+      OPENAI_MODEL: qwen2.5-0.5b-instruct-mlx
+      
       # 存储配置
       LOCAL_STORAGE_PATH: /app/storage
       

@@ -2,11 +2,12 @@
 """
 LLM控制器 - 提供智能农业建议和对话服务
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_template
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Generator
+import json
 
 from models.sensor import Sensor
 from models.reading import Reading
@@ -16,19 +17,112 @@ from services.llm_service import LLMService
 from extensions import db
 
 logger = logging.getLogger(__name__)
-llm_bp = Blueprint('llm', __name__, url_prefix='/api/llm')
+llm_bp = Blueprint('llm_assistant', __name__)
 
 # 初始化LLM服务
 llm_service = LLMService()
 
-@llm_bp.route('/chat', methods=['POST'])
-@jwt_required()
-def chat():
+@llm_bp.route('/chat/stream', methods=['GET'])
+def chat_stream():
     """
-    AI聊天接口
+    流式聊天接口 - 使用Server-Sent Events，支持可选认证
     """
     try:
-        user_id = get_jwt_identity()
+        # 尝试获取用户身份，支持URL参数和Header两种方式
+        user_id = None
+        try:
+            # 首先尝试从URL参数获取token
+            token = request.args.get('token')
+            if token:
+                from flask_jwt_extended import decode_token
+                decoded_token = decode_token(token)
+                user_id = decoded_token['sub']
+            else:
+                # 然后尝试从Header获取token
+                from flask_jwt_extended import verify_jwt_in_request
+                verify_jwt_in_request(optional=True)
+                user_id = get_jwt_identity()
+        except Exception as e:
+            # 没有token也可以继续，但功能受限
+            logger.debug("Token verification failed: %s", str(e))
+            pass
+            
+        message = request.args.get('message')
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Message is required'
+            }), 400
+        
+        def generate():
+            try:
+                # 获取传感器上下文
+                sensor_context = _get_recent_sensor_context()
+                
+                # 生成流式响应
+                full_response = ""
+                for chunk in llm_service.generate_chat_response_stream(
+                    message=message,
+                    sensor_context=sensor_context
+                ):
+                    full_response += chunk
+                    data = {
+                        'type': 'chunk',
+                        'content': chunk
+                    }
+                    yield f"data: {json.dumps(data)}\n\n"
+                
+                # 发送完成信号
+                completion_data = {
+                    'type': 'complete',
+                    'confidence': 0.85  # 可以从LLM服务返回实际置信度
+                }
+                yield f"data: {json.dumps(completion_data)}\n\n"
+                
+            except Exception as e:
+                logger.error("Stream chat error: %s", str(e))
+                error_data = {
+                    'type': 'error',
+                    'error': str(e)
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+        
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+                'Access-Control-Allow-Methods': 'GET'
+            }
+        )
+        
+    except Exception as e:
+        logger.error("Chat stream error: %s", str(e))
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@llm_bp.route('/chat', methods=['POST'])
+def chat():
+    """
+    AI聊天接口 - 支持可选的JWT认证
+    """
+    try:
+        # 尝试获取用户身份，但不强制要求
+        user_id = None
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request(optional=True)
+            user_id = get_jwt_identity()
+        except Exception:
+            # 没有token也可以继续，但功能受限
+            pass
+            
         data = request.get_json()
         
         if not data or 'message' not in data:
@@ -41,27 +135,25 @@ def chat():
         context = data.get('context', '')
         sensor_id = data.get('sensor_id')
         
-        # 获取相关传感器数据作为上下文
+        # 获取相关传感器数据作为上下文（仅限已认证用户）
         sensor_context = ""
-        if sensor_id:
+        if sensor_id and user_id:
             sensor_context = _get_sensor_context(sensor_id)
         
         # 生成AI回复
         response = llm_service.generate_chat_response(
             message=message,
             context=context,
-            sensor_context=sensor_context,
-            user_id=user_id
+            sensor_context=sensor_context
         )
         
         return jsonify({
             'success': True,
-            'data': {
-                'response': response['response'],
-                'context': response.get('context', ''),
-                'timestamp': datetime.now().isoformat(),
-                'confidence': response.get('confidence', 0.8)
-            }
+            'response': response['response'],
+            'context': response.get('context', ''),
+            'timestamp': datetime.now().isoformat(),
+            'confidence': response.get('confidence', 0.8),
+            'authenticated': user_id is not None
         })
         
     except ValueError as e:
@@ -74,7 +166,7 @@ def chat():
         logger.error("Chat error: %s", str(e))
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': '服务暂时不可用，请稍后再试'
         }), 500
 
 @llm_bp.route('/sensor-analysis', methods=['POST'])
@@ -412,3 +504,35 @@ def _get_sensor_context(sensor_id: int) -> str:
     except Exception as e:
         logger.error("Get sensor context error: %s", str(e))
         return ""
+
+def _get_recent_sensor_context() -> str:
+    """获取最近的传感器上下文信息"""
+    try:
+        # 获取最近活跃的传感器（有数据的）
+        recent_time = datetime.now() - timedelta(minutes=30)
+        recent_sensors = db.session.query(Sensor).join(Reading).filter(
+            Reading.timestamp >= recent_time
+        ).distinct().limit(5).all()
+        
+        if not recent_sensors:
+            return "暂无最近传感器数据"
+        
+        context_parts = []
+        for sensor in recent_sensors:
+            # 获取该传感器最新读数
+            latest_reading = Reading.query.filter_by(sensor_id=sensor.id)\
+                .order_by(Reading.timestamp.desc()).first()
+            
+            if latest_reading:
+                device = Device.query.get(sensor.device_id)
+                device_info = f" ({device.location})" if device else ""
+                
+                context_parts.append(
+                    f"{sensor.name}{device_info}: {latest_reading.numeric_value}{sensor.unit}"
+                )
+        
+        return "最近传感器数据: " + ", ".join(context_parts)
+        
+    except Exception as e:
+        logger.error("Get recent sensor context error: %s", str(e))
+        return "传感器数据获取失败"

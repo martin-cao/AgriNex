@@ -71,8 +71,8 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/chat',
     name: 'ChatBot',
-    component: () => import('../views/chat/Index.vue'),
-    meta: { requiresAuth: true, title: 'AI助手' }
+    component: () => import('../views/ChatBot.vue'),
+    meta: { requiresAuth: false, title: 'AI助手' }
   },
   {
     path: '/profile',

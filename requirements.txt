@@ -12,3 +12,4 @@ redis
 requests
 marshmallow
 plotly
+openai

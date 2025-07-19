@@ -31,8 +31,8 @@ docker-compose ps
 ```
 
 **3. 访问服务**
-- 后端API: http://localhost:8000
-- 前端界面: http://localhost:3000
+- 后端API: http://localhost/api
+- 前端界面: http://localhost
 - MinIO对象存储: http://localhost:9001
 - MQTT服务: localhost:1883
 - Redis: localhost:6379
@@ -297,10 +297,10 @@ python test_sensor_data_flow.py
 ### 健康检查
 ```bash
 # 检查服务状态
-curl http://localhost:8000/api/health
+curl http://localhost/api/health
 
 # 检查数据库连接
-curl http://localhost:8000/api/status
+curl http://localhost/api/status
 ```
 
 ## 🛠️ 开发指南
